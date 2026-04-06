@@ -1,11 +1,11 @@
 export type AuthUser = {
-  id?: number | string;
-  nombre: string;
-  rol: string;
-  correo?: string;
+    id?: number | string;
+    nombre: string;
+    rol: string;
+    correo?: string;
 };
 
 export type LoginResponse = {
-  token: string;
-  user: AuthUser;
+    token: string;
+    user: AuthUser;
 };
