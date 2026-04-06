@@ -1,0 +1,191 @@
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --background: #f7f7f4;
+  --foreground: #18181b;
+  --card: rgba(255, 255, 255, 0.82);
+  --card-strong: #ffffff;
+  --muted: #5f6470;
+  --muted-strong: #2a2f39;
+  --border-soft: rgba(24, 24, 27, 0.08);
+  --primary: #f6b11a;
+  --primary-strong: #e09100;
+  --primary-foreground: #241600;
+  --egg: #fff8dd;
+  --surface: #efefea;
+  --success: #16a34a;
+  --danger: #dc2626;
+}
+
+.dark {
+  --background: #101114;
+  --foreground: #f4f4f5;
+  --card: rgba(24, 24, 27, 0.72);
+  --card-strong: #18181b;
+  --muted: #d6d6df;
+  --muted-strong: #f3f4f6;
+  --border-soft: rgba(255, 255, 255, 0.08);
+  --primary: #f6b11a;
+  --primary-strong: #ffbf2f;
+  --primary-foreground: #2b1900;
+  --egg: #2b2514;
+  --surface: #18181b;
+  --success: #4ade80;
+  --danger: #f87171;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-strong: var(--card-strong);
+  --color-muted: var(--muted);
+  --color-primary: var(--primary);
+  --color-primary-strong: var(--primary-strong);
+  --color-primary-foreground: var(--primary-foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+  color: var(--foreground);
+  background:
+    radial-gradient(circle at top left, rgba(246, 177, 26, 0.16), transparent 28%),
+    radial-gradient(circle at top right, rgba(255, 255, 255, 0.06), transparent 24%),
+    linear-gradient(180deg, var(--background), var(--surface));
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+}
+
+button {
+  cursor: pointer;
+}
+
+.glass-card {
+  background: var(--card);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border-soft);
+}
+
+.soft-border {
+  border: 1px solid var(--border-soft);
+}
+
+.primary-button {
+  background: linear-gradient(180deg, var(--primary), var(--primary-strong));
+  color: var(--primary-foreground);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 10px 30px rgba(246, 177, 26, 0.22);
+}
+
+.secondary-button {
+  background: var(--card-strong);
+  color: var(--foreground);
+  border: 1px solid var(--border-soft);
+}
+
+.card-interactive {
+  transition:
+    transform 0.3s ease,
+    box-shadow 0.3s ease,
+    border-color 0.3s ease;
+}
+
+.card-interactive:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.08);
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes floatSoft {
+
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes pulseSoft {
+
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(246, 177, 26, 0.18);
+  }
+
+  50% {
+    box-shadow: 0 0 0 10px rgba(246, 177, 26, 0.04);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -220% 0;
+  }
+
+  100% {
+    background-position: 220% 0;
+  }
+}
+
+.animate-fade-up {
+  animation: fadeUp 0.55s ease both;
+}
+
+.animate-float-soft {
+  animation: floatSoft 4s ease-in-out infinite;
+}
+
+.animate-pulse-soft {
+  animation: pulseSoft 2.4s ease-in-out infinite;
+}
+
+.animate-shimmer {
+  background-image: linear-gradient(90deg,
+      transparent,
+      rgba(255, 255, 255, 0.18),
+      transparent);
+  background-size: 220% 100%;
+  animation: shimmer 3s linear infinite;
+}
+
+@keyframes toastIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.toast-enter {
+  animation: toastIn 0.28s ease both;
+}
