@@ -52,3 +52,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# User specified ignore
+agents/
+docs/
+prompts/
+tareas.md
+
