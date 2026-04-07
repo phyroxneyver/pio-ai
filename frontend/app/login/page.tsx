@@ -43,11 +43,11 @@ export default function LoginPage() {
 
       const data = await res.json();
       localStorage.setItem("token", data.token);
-      localStorage.setItem("user", JSON.stringify(data.user));
+      localStorage.setItem("user",JSON.stringify(data.user))
+      document.cookie= `token=${data.token}; path=/`;
       router.push("/");
-    } catch (err) {
       setError("Error de conexión. Intenta de nuevo.");
-      console.error(err);
+      console.error(error);
     } finally {
       setLoading(false);
     }
