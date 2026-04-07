@@ -7,10 +7,14 @@ from app.schemas.users import UserCreate, UserResponse
 from app.services.users import create_user
 from app.models.users import User
 
+from app.schemas.aves import AveCreate, AveResponse, ProduccionCreate, ProduccionResponse
+from app.services.aves import create_ave, get_aves, create_produccion, get_producciones
+from app.models.aves import Ave
+
 app = FastAPI(
     title="Pio AI API",
     description="Backend para el proyecto Pio AI",
-    version="0.1.2"
+    version="0.1.3"
 )
 
 # CORS
@@ -42,10 +46,17 @@ def get_db():
 def startup_db():
     Base.metadata.create_all(bind=engine)
 
-# Rutas
+# ── Rutas generales ────────────────────────────────────────────────────────────
+
 @app.get("/")
 async def root():
-    return {"message": "Pio AI API is running on Vercel", "status": "healthy"}
+    return {"message": "Pio AI API is running", "status": "healthy"}
+
+@app.get("/health")
+async def health_check():
+    return {"status": "ok"}
+
+# ── Usuarios ───────────────────────────────────────────────────────────────────
 
 @app.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 def register(user: UserCreate, db: Session = Depends(get_db)):
@@ -54,6 +65,29 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="El correo ya está registrado")
     return create_user(db=db, user=user)
 
-@app.get("/health")
-async def health_check():
-    return {"status": "ok"}
+# ── Aves (pollitos / gallinas) ─────────────────────────────────────────────────
+
+@app.post("/aves", response_model=AveResponse, status_code=status.HTTP_201_CREATED)
+def registrar_ave(ave: AveCreate, db: Session = Depends(get_db)):
+    """Registra datos de aves (pollitos o gallinas)."""
+    return create_ave(db=db, ave=ave)
+
+@app.get("/aves", response_model=list[AveResponse])
+def listar_aves(db: Session = Depends(get_db)):
+    """Lista todas las aves registradas."""
+    return get_aves(db=db)
+
+# ── Producción de huevos ───────────────────────────────────────────────────────
+
+@app.post("/produccion-huevos", response_model=ProduccionResponse, status_code=status.HTTP_201_CREATED)
+def registrar_produccion(produccion: ProduccionCreate, db: Session = Depends(get_db)):
+    """Registra datos de producción de huevos para un ave."""
+    ave = db.query(Ave).filter(Ave.id == produccion.ave_id).first()
+    if not ave:
+        raise HTTPException(status_code=404, detail="Ave no encontrada")
+    return create_produccion(db=db, produccion=produccion)
+
+@app.get("/produccion-huevos", response_model=list[ProduccionResponse])
+def listar_produccion(db: Session = Depends(get_db)):
+    """Lista todos los registros de producción de huevos."""
+    return get_producciones(db=db)
