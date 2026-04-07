@@ -4,11 +4,12 @@ import { MobileNav } from "./mobile-nav";
 
 type PageContainerProps = {
   children: ReactNode;
+  className?: string;
 };
 
-export function PageContainer({ children }: PageContainerProps) {
+export function PageContainer({ children, className = "" }: PageContainerProps) {
   return (
-    <div className="min-h-screen bg-[#0a0a0a]">
+    <div className={`min-h-screen bg-[#0a0a0a] w-full max-w-full overflow-x-hidden ${className}`}>
       {/* Sidebar solo en escritorio */}
       <Sidebar />
 

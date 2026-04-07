@@ -1,144 +1,240 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import {
+    Eye,
+    EyeOff,
+    LockKeyhole,
+    LogIn,
+    Mail,
+    Sparkles,
+} from "lucide-react";
+import { LogoMark } from "@/components/brand/logo-mark";
+import { ThemeToggle } from "@/components/theme/theme-toggle";
+import { getToken, saveToken, saveUser } from "@/lib/session";
+import { getDemoCredentials, loginMock } from "@/lib/mock-auth";
+import { useToast } from "@/components/ui/toast-provider";
 
 export default function LoginPage() {
-  const router = useRouter();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+    const router = useRouter();
+    const searchParams = useSearchParams();
+    const redirectTo = searchParams.get("redirect") || "/";
+    const { showToast } = useToast();
 
-  useEffect(() => {
-    if (localStorage.getItem("token")) {
-      router.push("/dashboard");
-    }
-  }, [router]);
+    const [correo, setCorreo] = useState("");
+    const [password, setPassword] = useState("");
+    const [showPassword, setShowPassword] = useState(false);
+    const [loading, setLoading] = useState(false);
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
+    const [errors, setErrors] = useState<{
+        correo?: string;
+        password?: string;
+    }>({});
 
-    if (!email || !password) {
-      setError("Por favor completa todos los campos.");
-      return;
-    }
-
-    try {
-      setLoading(true);
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/auth/login`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password }),
+    useEffect(() => {
+        const token = getToken();
+        if (token) {
+            router.replace(redirectTo);
         }
-      );
+    }, [redirectTo, router]);
 
-      if (!res.ok) {
-        setError("Correo o contraseña incorrectos.");
-        return;
-      }
+    function fillDemoAccount() {
+        const demo = getDemoCredentials();
+        setCorreo(demo.correo);
+        setPassword(demo.password);
 
-      const data = await res.json();
-      localStorage.setItem("token", data.token);
-      localStorage.setItem("user",JSON.stringify(data.user))
-      document.cookie= `token=${data.token}; path=/`;
-      router.push("/");
-      setError("Error de conexión. Intenta de nuevo.");
-      console.error(error);
-    } finally {
-      setLoading(false);
+        showToast({
+            type: "info",
+            title: "Cuenta demo cargada",
+            description: "Ya puedes ingresar con las credenciales locales.",
+        });
     }
-  };
 
-  return (
-    <main className="min-h-screen relative flex items-center justify-center bg-[#0a0a0a] px-4 overflow-hidden antialiased">
-      {/* Subtle Glows */}
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-amber-500/10 rounded-full blur-[120px] pointer-events-none"></div>
-      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-zinc-800/20 rounded-full blur-[120px] pointer-events-none"></div>
+    async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+        e.preventDefault();
 
-      <div className="w-full max-w-md relative z-10">
-        <div className="bg-[#141414] border border-zinc-800/50 rounded-3xl shadow-2xl p-10 backdrop-blur-sm">
-          
-          {/* Logo Section - Matching screenshot style */}
-          <div className="text-center mb-10">
-            <div className="inline-flex items-center justify-center w-20 h-20 bg-white rounded-[2rem] mb-6 shadow-xl relative overflow-hidden group">
-              {/* Egg shell effect */}
-              <div className="absolute inset-0 bg-gradient-to-br from-white to-zinc-100"></div>
-              {/* Yolk */}
-              <div className="w-8 h-10 bg-[#fbb100] rounded-full z-10 shadow-sm transition-transform group-hover:scale-110"></div>
+        const newErrors: {
+            correo?: string;
+            password?: string;
+        } = {};
+
+        if (!correo.trim()) {
+            newErrors.correo = "El correo es obligatorio";
+        }
+
+        if (!password.trim()) {
+            newErrors.password = "La contraseña es obligatoria";
+        }
+
+        setErrors(newErrors);
+
+        if (Object.keys(newErrors).length > 0) {
+            showToast({
+                type: "error",
+                title: "Campos incompletos",
+                description: "Completa el correo y la contraseña.",
+            });
+            return;
+        }
+
+        try {
+            setLoading(true);
+
+            const session = await loginMock(correo, password);
+
+            saveToken(session.token);
+            saveUser(session.user);
+
+            // Guardar token en cookie para el middleware
+            document.cookie = `token=${session.token}; path=/`;
+
+            showToast({
+                type: "success",
+                title: "Sesión iniciada",
+                description: "Ingresando al panel principal.",
+            });
+
+            router.replace(redirectTo);
+        } catch (error) {
+            showToast({
+                type: "error",
+                title: "No se pudo iniciar sesión",
+                description:
+                    error instanceof Error
+                        ? error.message
+                        : "Credenciales incorrectas",
+            });
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    return (
+        <div className="flex min-h-screen items-center justify-center px-4 py-8">
+            <div className="fixed right-3 top-3 z-50 sm:right-4 sm:top-4">
+                <ThemeToggle className="h-9 w-9 rounded-xl opacity-90 sm:h-11 sm:w-11 sm:rounded-2xl sm:opacity-100" />
             </div>
-            <div className="space-y-1">
-                <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-[0.3em]">Sistema Avícola</span>
-                <h1 className="text-3xl font-black text-white tracking-tight">PIO AI</h1>
+
+            <div className="grid w-full max-w-5xl overflow-hidden rounded-[36px] border border-white/20 bg-white/65 shadow-[0_30px_80px_rgba(0,0,0,0.12)] backdrop-blur-xl dark:border-white/10 dark:bg-neutral-900/65 lg:grid-cols-[1.05fr_0.95fr]">
+                <div className="hidden flex-col justify-between bg-[linear-gradient(180deg,rgba(246,177,26,0.22),rgba(246,177,26,0.06))] p-8 lg:flex">
+                    <LogoMark />
+
+                    <div className="max-w-md">
+                        <span className="inline-flex items-center gap-2 rounded-full bg-white/60 px-3 py-1 text-xs font-semibold text-[var(--primary-strong)] dark:bg-white/5">
+                            <Sparkles className="h-3.5 w-3.5" />
+                            Acceso local de prueba
+                        </span>
+
+                        <h2 className="mt-4 text-4xl font-semibold tracking-tight">
+                            Bienvenido a PIO AI
+                        </h2>
+
+                        <p className="mt-4 text-sm leading-7 text-[var(--muted-strong)]">
+                            Este login funciona sin backend. Usa la cuenta demo local para
+                            probar todo el frontend.
+                        </p>
+                    </div>
+                </div>
+
+                <div className="p-6 sm:p-8 lg:p-10">
+                    <div className="mb-8 lg:hidden">
+                        <LogoMark />
+                    </div>
+
+                    <div>
+                        <p className="text-sm font-medium text-[var(--muted)]">
+                            Inicio de sesión
+                        </p>
+                        <h1 className="mt-2 text-3xl font-semibold tracking-tight">
+                            Accede a tu cuenta
+                        </h1>
+                        <p className="mt-3 text-sm leading-6 text-[var(--muted)]">
+                            Introduce tu correo y contraseña o usa la cuenta demo.
+                        </p>
+                    </div>
+
+                    <div className="mt-6 rounded-[24px] border border-white/20 bg-white/60 p-4 shadow-sm dark:border-white/10 dark:bg-white/5">
+                        <p className="text-sm font-semibold text-[var(--foreground)]">
+                            Cuenta demo local
+                        </p>
+                        <p className="mt-2 text-sm text-[var(--muted)]">
+                            Correo: <span className="font-medium">admin@pioai.com</span>
+                        </p>
+                        <p className="text-sm text-[var(--muted)]">
+                            Contraseña: <span className="font-medium">123456</span>
+                        </p>
+
+                        <button
+                            type="button"
+                            onClick={fillDemoAccount}
+                            className="secondary-button mt-4 rounded-2xl px-4 py-2 text-sm font-medium transition duration-300 hover:-translate-y-0.5"
+                        >
+                            Usar cuenta demo
+                        </button>
+                    </div>
+
+                    <form onSubmit={handleSubmit} className="mt-8 space-y-5">
+                        <div>
+                            <label className="mb-2 block text-sm font-medium">
+                                Correo
+                            </label>
+                            <div className="flex items-center gap-3 rounded-2xl border border-black/10 bg-white/80 px-4 py-3 dark:border-white/10 dark:bg-black/20">
+                                <Mail className="h-4 w-4 text-[var(--muted)]" />
+                                <input
+                                    type="email"
+                                    value={correo}
+                                    onChange={(e) => setCorreo(e.target.value)}
+                                    placeholder="correo@ejemplo.com"
+                                    className="w-full bg-transparent text-sm outline-none placeholder:text-black/35 dark:placeholder:text-white/35"
+                                />
+                            </div>
+                            {errors.correo ? (
+                                <p className="mt-2 text-sm text-red-500">{errors.correo}</p>
+                            ) : null}
+                        </div>
+
+                        <div>
+                            <label className="mb-2 block text-sm font-medium">
+                                Contraseña
+                            </label>
+                            <div className="flex items-center gap-3 rounded-2xl border border-black/10 bg-white/80 px-4 py-3 dark:border-white/10 dark:bg-black/20">
+                                <LockKeyhole className="h-4 w-4 text-[var(--muted)]" />
+                                <input
+                                    type={showPassword ? "text" : "password"}
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    placeholder="********"
+                                    className="w-full bg-transparent text-sm outline-none placeholder:text-black/35 dark:placeholder:text-white/35"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword((prev) => !prev)}
+                                    className="text-[var(--muted)]"
+                                >
+                                    {showPassword ? (
+                                        <EyeOff className="h-4 w-4" />
+                                    ) : (
+                                        <Eye className="h-4 w-4" />
+                                    )}
+                                </button>
+                            </div>
+                            {errors.password ? (
+                                <p className="mt-2 text-sm text-red-500">{errors.password}</p>
+                            ) : null}
+                        </div>
+
+                        <button
+                            type="submit"
+                            disabled={loading}
+                            className="primary-button inline-flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold transition duration-300 hover:-translate-y-0.5 disabled:opacity-70"
+                        >
+                            <LogIn className="h-4 w-4" />
+                            {loading ? "Ingresando..." : "Iniciar sesión"}
+                        </button>
+                    </form>
+                </div>
             </div>
-          </div>
-
-          <form onSubmit={handleLogin} className="space-y-6">
-            <div className="space-y-2">
-              <label className="block text-xs font-bold text-zinc-400 uppercase tracking-widest pl-1">
-                Correo electrónico
-              </label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="adrian@pioai.local"
-                className="w-full bg-[#0d0d0d] border border-zinc-800 focus:border-amber-500/50 rounded-2xl px-5 py-4 text-white placeholder-zinc-600 focus:outline-none focus:ring-4 focus:ring-amber-500/5 transition-all shadow-inner"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex justify-between items-center px-1">
-                <label className="block text-xs font-bold text-zinc-400 uppercase tracking-widest">
-                  Contraseña
-                </label>
-                <button type="button" className="text-[10px] text-amber-500 font-bold hover:underline uppercase tracking-tighter">
-                  ¿Olvidaste tu clave?
-                </button>
-              </div>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full bg-[#0d0d0d] border border-zinc-800 focus:border-amber-500/50 rounded-2xl px-5 py-4 text-white focus:outline-none focus:ring-4 focus:ring-amber-500/5 transition-all shadow-inner"
-              />
-            </div>
-
-            {error && (
-              <div className="bg-red-500/10 border-l-4 border-red-500 p-3 rounded-r-xl transition-all">
-                <p className="text-red-400 text-xs font-bold flex items-center">
-                  <span className="mr-2 text-base"></span> {error}
-                </p>
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="group w-full bg-[#fbb100] hover:bg-[#ffc124] text-black rounded-2xl py-4 text-sm font-black shadow-[0_10px_20px_rgba(251,177,0,0.2)] disabled:opacity-50 transition-all transform active:scale-[0.98] flex items-center justify-center gap-3 relative overflow-hidden"
-            >
-              {loading ? (
-                <div className="w-5 h-5 border-2 border-black/30 border-t-black rounded-full animate-spin"></div>
-              ) : (
-                <>
-                  <span className="uppercase tracking-[0.2em]">Ingresar al Sistema</span>
-                  <svg className="w-4 h-4 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
-                </>
-              )}
-            </button>
-          </form>
-
-          <footer className="mt-10 pt-6 border-t border-zinc-800/50 text-center">
-            <p className="text-zinc-600 text-[10px] font-medium tracking-[0.1em] uppercase">
-              &copy; {new Date().getFullYear()} PIO AI &bull; Seguridad & Control
-            </p>
-          </footer>
         </div>
-      </div>
-    </main>
-  );
+    );
 }

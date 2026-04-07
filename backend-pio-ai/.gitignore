@@ -1,0 +1,7 @@
+.vercel
+.venv/
+__pycache__/
+*.pyc
+.env
+sql_app.db
+.DS_Store
