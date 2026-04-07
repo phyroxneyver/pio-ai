@@ -1,28 +1,23 @@
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
-import os
 
-# Importaciones relativas abackend-pio-ai/
 from app.core.database import SessionLocal, engine, Base
 from app.schemas.users import UserCreate, UserResponse
 from app.services.users import create_user
 from app.models.users import User
 
-# Inicialización de base de datos
-Base.metadata.create_all(bind=engine)
-
 app = FastAPI(
     title="Pio AI API",
-    description="Backend para el proyecto Pio AI implementado para Vercel",
+    description="Backend para el proyecto Pio AI",
     version="0.1.2"
 )
 
-# Configuración de CORS
+# CORS
 origins = [
     "https://tu-app-en-netlify.netlify.app",
-    "http://localhost:3000",                
-    "http://localhost:5173",                
+    "http://localhost:3000",
+    "http://localhost:5173",
     "http://127.0.0.1:3000",
 ]
 
@@ -34,13 +29,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Dependencia de DB
+# DB dependency
 def get_db():
     db = SessionLocal()
     try:
         yield db
     finally:
         db.close()
+
+# Inicializar tablas al arrancar
+@app.on_event("startup")
+def startup_db():
+    Base.metadata.create_all(bind=engine)
 
 # Rutas
 @app.get("/")
