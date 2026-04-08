@@ -2,10 +2,12 @@ from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
-from app.core.database import SessionLocal, engine, Base
+from app.core.database import SessionLocal, engine, Base, get_db
 from app.schemas.users import UserCreate, UserResponse
 from app.services.users import create_user
 from app.models.users import User
+from app.api.auth import router as auth_router
+from app.core.security import get_password_hash
 
 app = FastAPI(
     title="Pio AI API",
@@ -29,18 +31,28 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# DB dependency
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+# Routers
+app.include_router(auth_router)
 
-# Inicializar tablas al arrancar
+# Inicializar tablas al arrancar y asegurar usuario admin
 @app.on_event("startup")
 def startup_db():
     Base.metadata.create_all(bind=engine)
+    
+    # Crear usuario por defecto si no existe
+    db = SessionLocal()
+    try:
+        admin_email = "admin@pioai.com"
+        admin_pass = "123456"
+        db_user = db.query(User).filter(User.email == admin_email).first()
+        if not db_user:
+            hashed_pass = get_password_hash(admin_pass)
+            new_user = User(email=admin_email, hashed_password=hashed_pass)
+            db.add(new_user)
+            db.commit()
+            print("Admin user created successfully")
+    finally:
+        db.close()
 
 # Rutas
 @app.get("/")
