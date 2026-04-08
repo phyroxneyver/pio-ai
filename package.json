@@ -1,5 +1,6 @@
 {
   "dependencies": {
-    "@netlify/plugin-nextjs": "^5.15.9"
+    "dotenv": "^17.4.0",
+    "mysql2": "^3.20.0"
   }
 }
