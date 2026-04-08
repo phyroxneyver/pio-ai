@@ -232,6 +232,18 @@ export default function LoginPage() {
                             <LogIn className="h-4 w-4" />
                             {loading ? "Ingresando..." : "Iniciar sesión"}
                         </button>
+
+                                                <div className="mt-4 text-center text-sm text-[var(--muted)]">
+                            ¿No tienes cuenta?{" "}
+                            <button
+                                type="button"
+                                onClick={() => router.push("/registro")}
+                                className="font-semibold text-[var(--primary-strong)] underline-offset-4 hover:underline"
+                            >
+                                Regístrate
+                            </button>
+                        </div>
+
                     </form>
                 </div>
             </div>
