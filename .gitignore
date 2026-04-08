@@ -58,3 +58,4 @@ agents/
 docs/
 prompts/
 tareas.md
+.env*.local
