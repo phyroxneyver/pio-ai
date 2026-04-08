@@ -86,6 +86,9 @@ export default function LoginPage() {
             saveToken(session.token);
             saveUser(session.user);
 
+            // Guardar token en cookie para el middleware
+            document.cookie = `token=${session.token}; path=/`;
+
             showToast({
                 type: "success",
                 title: "Sesión iniciada",
@@ -173,7 +176,9 @@ export default function LoginPage() {
 
                     <form onSubmit={handleSubmit} className="mt-8 space-y-5">
                         <div>
-                            <label className="mb-2 block text-sm font-medium">Correo</label>
+                            <label className="mb-2 block text-sm font-medium">
+                                Correo
+                            </label>
                             <div className="flex items-center gap-3 rounded-2xl border border-black/10 bg-white/80 px-4 py-3 dark:border-white/10 dark:bg-black/20">
                                 <Mail className="h-4 w-4 text-[var(--muted)]" />
                                 <input
@@ -227,6 +232,18 @@ export default function LoginPage() {
                             <LogIn className="h-4 w-4" />
                             {loading ? "Ingresando..." : "Iniciar sesión"}
                         </button>
+
+                                                <div className="mt-4 text-center text-sm text-[var(--muted)]">
+                            ¿No tienes cuenta?{" "}
+                            <button
+                                type="button"
+                                onClick={() => router.push("/registro")}
+                                className="font-semibold text-[var(--primary-strong)] underline-offset-4 hover:underline"
+                            >
+                                Regístrate
+                            </button>
+                        </div>
+
                     </form>
                 </div>
             </div>
