@@ -8,7 +8,7 @@ class Ave(Base):
     __tablename__ = "aves"
 
     id = Column(Integer, primary_key=True, index=True)
-    tipo = Column(String(50), nullable=False)          # "pollito" o "gallina"
+    tipo = Column(String(50), nullable=False)         
     cantidad = Column(Integer, nullable=False)
     raza = Column(String(100), nullable=True)
     fecha_ingreso = Column(DateTime, default=datetime.utcnow)

@@ -1,7 +1,9 @@
 from sqlalchemy.orm import Session
 from app.models.aves import Ave, ProduccionHuevos
-from app.schemas.aves import AveCreate, ProduccionCreate
+from app.schemas.aves import AveCreate, AveUpdate, ProduccionCreate, ProduccionUpdate
 
+
+# ---------- Aves ----------
 
 def create_ave(db: Session, ave: AveCreate) -> Ave:
     db_ave = Ave(
@@ -20,6 +22,19 @@ def get_aves(db: Session) -> list[Ave]:
     return db.query(Ave).all()
 
 
+def update_ave(db: Session, ave_id: int, datos: AveUpdate) -> Ave | None:
+    db_ave = db.query(Ave).filter(Ave.id == ave_id).first()
+    if not db_ave:
+        return None
+    for campo, valor in datos.model_dump(exclude_unset=True).items():
+        setattr(db_ave, campo, valor)
+    db.commit()
+    db.refresh(db_ave)
+    return db_ave
+
+
+# ---------- Producción de huevos ----------
+
 def create_produccion(db: Session, produccion: ProduccionCreate) -> ProduccionHuevos:
     db_produccion = ProduccionHuevos(
         ave_id=produccion.ave_id,
@@ -34,3 +49,14 @@ def create_produccion(db: Session, produccion: ProduccionCreate) -> ProduccionHu
 
 def get_producciones(db: Session) -> list[ProduccionHuevos]:
     return db.query(ProduccionHuevos).all()
+
+
+def update_produccion(db: Session, produccion_id: int, datos: ProduccionUpdate) -> ProduccionHuevos | None:
+    db_prod = db.query(ProduccionHuevos).filter(ProduccionHuevos.id == produccion_id).first()
+    if not db_prod:
+        return None
+    for campo, valor in datos.model_dump(exclude_unset=True).items():
+        setattr(db_prod, campo, valor)
+    db.commit()
+    db.refresh(db_prod)
+    return db_prod
