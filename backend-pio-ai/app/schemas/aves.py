@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Optional, Literal
 
 
-# ---------- Aves ----------
+
 
 class AveCreate(BaseModel):
     tipo: Literal["pollito", "gallina"] = Field(..., description="Tipo de ave: 'pollito' o 'gallina'")
@@ -31,7 +31,7 @@ class AveResponse(BaseModel):
         from_attributes = True
 
 
-# ---------- Producción de huevos ----------
+
 
 class ProduccionCreate(BaseModel):
     ave_id: int = Field(..., description="ID del ave asociada")

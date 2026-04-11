@@ -3,7 +3,7 @@ from app.models.aves import Ave, ProduccionHuevos
 from app.schemas.aves import AveCreate, AveUpdate, ProduccionCreate, ProduccionUpdate
 
 
-# ---------- Aves ----------
+
 
 def create_ave(db: Session, ave: AveCreate) -> Ave:
     db_ave = Ave(
@@ -33,7 +33,7 @@ def update_ave(db: Session, ave_id: int, datos: AveUpdate) -> Ave | None:
     return db_ave
 
 
-# ---------- Producción de huevos ----------
+
 
 def create_produccion(db: Session, produccion: ProduccionCreate) -> ProduccionHuevos:
     db_produccion = ProduccionHuevos(
