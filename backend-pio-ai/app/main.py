@@ -10,8 +10,12 @@ from app.schemas.users import UserCreate, UserResponse
 from app.services.users import create_user
 from app.models.users import User
 from app.models.token_blacklist import TokenBlacklist  # Registrar modelo en metadata
+from app.models.imagenes import Imagen, ResultadoIA  # Registrar modelos de imágenes
+from app.models.alertas import Alerta, NotificacionInterna, HistorialAlerta  # Modelos de alertas
 
 from app.api.auth import router as auth_router
+from app.api.imagenes import router as imagenes_router
+from app.api.alertas import router as alertas_router
 
 from app.schemas.aves import (
     AveCreate, AveUpdate, AveResponse,
@@ -51,6 +55,8 @@ app.add_middleware(
 # Routers
 # ---------------------------------------------------------------------------
 app.include_router(auth_router)
+app.include_router(imagenes_router)
+app.include_router(alertas_router)
 
 
 # ---------------------------------------------------------------------------
