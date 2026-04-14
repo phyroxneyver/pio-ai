@@ -10,8 +10,11 @@ dependencies = [
     "python-dotenv",
     "passlib[bcrypt]",
     "email-validator",
-    "python-multipart"
+    "python-multipart",
+    "python-jose[cryptography]",
+    "bcrypt==4.0.1"
 ]
+
 
 [project.scripts]
 app = "app.main:app"
