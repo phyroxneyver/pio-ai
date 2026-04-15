@@ -6,8 +6,8 @@ from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 from jose import jwt, JWTError
 
-from app.models.token_blacklist import TokenBlacklist
-from app.core.security import SECRET_KEY, ALGORITHM
+from ..models.token_blacklist import TokenBlacklist
+from ..core.security import SECRET_KEY, ALGORITHM
 
 
 def blacklist_token(db: Session, token: str) -> None:

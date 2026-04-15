@@ -11,15 +11,15 @@ Endpoints:
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from sqlalchemy.orm import Session
 
-from app.core.database import get_db
-from app.core.deps import get_current_active_user, require_role
-from app.models.users import User
-from app.schemas.imagenes import (
+from ..core.database import get_db
+from ..core.deps import get_current_active_user, require_role
+from ..models.users import User
+from ..schemas.imagenes import (
     ImagenDeleteResponse,
     ImagenListResponse,
     ImagenResponse,
 )
-from app.services.imagenes import (
+from ..services.imagenes import (
     cleanup_temp_files,
     delete_imagen,
     get_imagen_by_id,

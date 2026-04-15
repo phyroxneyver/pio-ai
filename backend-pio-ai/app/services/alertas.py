@@ -1,3 +1,4 @@
+from typing import Optional, List
 """
 Servicio de alertas, notificaciones e historial.
 
@@ -14,9 +15,9 @@ from typing import Optional
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.models.alertas import Alerta, HistorialAlerta, NotificacionInterna
-from app.models.users import User
-from app.schemas.alertas import AlertaCreate
+from ..models.alertas import Alerta, HistorialAlerta, NotificacionInterna
+from ..models.users import User
+from ..schemas.alertas import AlertaCreate
 
 
 # ---------------------------------------------------------------------------
@@ -27,9 +28,9 @@ def _registrar_historial(
     alerta_id: int,
     accion: str,
     realizado_por_id: int,
-    estado_anterior: str | None = None,
-    estado_nuevo: str | None = None,
-    detalle: str | None = None,
+    estado_anterior: Optional[str] = None,
+    estado_nuevo: Optional[str] = None,
+    detalle: Optional[str] = None,
 ) -> HistorialAlerta:
     """Registra una entrada inmutable en el historial de la alerta."""
     entrada = HistorialAlerta(
@@ -101,13 +102,13 @@ def crear_alerta(
 
 def listar_alertas(
     db: Session,
-    estado: str | None = None,
-    prioridad: str | None = None,
-    tipo: str | None = None,
+    estado: Optional[str] = None,
+    prioridad: Optional[str] = None,
+    tipo: Optional[str] = None,
     incluir_eliminadas: bool = False,
     skip: int = 0,
     limit: int = 50,
-) -> tuple[list[Alerta], int]:
+) -> tuple[List[Alerta], int]:
     """
     Lista alertas con filtros opcionales y paginación.
     Por defecto oculta las eliminadas (soft-delete).
@@ -133,7 +134,7 @@ def listar_alertas(
     return alertas, total
 
 
-def obtener_alerta(db: Session, alerta_id: int) -> Alerta | None:
+def obtener_alerta(db: Session, alerta_id: int) -> Optional[Alerta]:
     """Obtiene una alerta por ID (incluye eliminadas para auditoría)."""
     return db.query(Alerta).filter(Alerta.id == alerta_id).first()
 
@@ -281,7 +282,7 @@ def listar_notificaciones(
     solo_no_leidas: bool = False,
     skip: int = 0,
     limit: int = 50,
-) -> tuple[list[NotificacionInterna], int, int]:
+) -> tuple[List[NotificacionInterna], int, int]:
     """
     Lista notificaciones de un usuario con paginación.
     Retorna: (notificaciones, total, no_leidas)
@@ -365,7 +366,7 @@ def marcar_todas_leidas(db: Session, usuario_id: int) -> int:
 # ---------------------------------------------------------------------------
 def obtener_historial(
     db: Session, alerta_id: int,
-) -> list[HistorialAlerta]:
+) -> List[HistorialAlerta]:
     """Obtiene el historial completo de una alerta (orden cronológico desc)."""
     # Verificar que la alerta existe
     alerta = db.query(Alerta).filter(Alerta.id == alerta_id).first()

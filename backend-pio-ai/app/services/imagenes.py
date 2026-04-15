@@ -16,12 +16,12 @@ import shutil
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List
 
 from fastapi import HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 
-from app.models.imagenes import Imagen, ResultadoIA
+from ..models.imagenes import Imagen, ResultadoIA
 
 # ---------------------------------------------------------------------------
 # Configuración
@@ -193,7 +193,7 @@ def get_imagenes(
     usuario_id: Optional[int] = None,
     skip: int = 0,
     limit: int = 50,
-) -> tuple[list[Imagen], int]:
+) -> tuple[List[Imagen], int]:
     """
     Lista imágenes con paginación.
     Si se proporciona usuario_id, filtra por usuario.
@@ -213,7 +213,7 @@ def get_imagenes(
     return imagenes, total
 
 
-def get_imagen_by_id(db: Session, imagen_id: int) -> Imagen | None:
+def get_imagen_by_id(db: Session, imagen_id: int) -> Optional[Imagen]:
     """Obtiene una imagen por su ID."""
     return db.query(Imagen).filter(Imagen.id == imagen_id).first()
 
@@ -251,7 +251,7 @@ def cleanup_temp_files(max_age_hours: int = 24) -> int:
     if not upload_dir.exists():
         return 0
 
-    from app.core.database import SessionLocal
+    from ..core.database import SessionLocal
 
     db = SessionLocal()
     removed = 0

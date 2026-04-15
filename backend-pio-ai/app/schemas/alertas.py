@@ -3,7 +3,7 @@ Schemas Pydantic para el módulo de alertas y notificaciones.
 """
 from pydantic import BaseModel, Field
 from datetime import datetime
-from typing import Optional, Literal
+from typing import Optional, Literal, List
 
 
 # ---------------------------------------------------------------------------
@@ -67,7 +67,7 @@ class AlertaResponse(BaseModel):
 
 class AlertaListResponse(BaseModel):
     total: int
-    alertas: list[AlertaResponse]
+    alertas: List[AlertaResponse]
 
 
 # ---------------------------------------------------------------------------
@@ -91,7 +91,7 @@ class NotificacionResponse(BaseModel):
 class NotificacionListResponse(BaseModel):
     total: int
     no_leidas: int
-    notificaciones: list[NotificacionResponse]
+    notificaciones: List[NotificacionResponse]
 
 
 # ---------------------------------------------------------------------------
@@ -114,4 +114,4 @@ class HistorialEntrada(BaseModel):
 class HistorialResponse(BaseModel):
     alerta_id: int
     total: int
-    entradas: list[HistorialEntrada]
+    entradas: List[HistorialEntrada]
