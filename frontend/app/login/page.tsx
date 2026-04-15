@@ -14,6 +14,8 @@ import { LogoMark } from "@/components/brand/logo-mark";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { getToken, saveToken, saveUser } from "@/lib/session";
 import { getDemoCredentials, loginMock } from "@/lib/mock-auth";
+import { loginReal } from "@/lib/api";
+
 import { useToast } from "@/components/ui/toast-provider";
 
 export default function LoginPage() {
@@ -81,7 +83,12 @@ export default function LoginPage() {
         try {
             setLoading(true);
 
-            const session = await loginMock(correo, password);
+            let session;
+try {
+  session = await loginReal(correo, password);
+} catch {
+  session = await loginMock(correo, password);
+}
 
             saveToken(session.token);
             saveUser(session.user);

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { fetchWithAuth } from "@/lib/api";
 import { CounterButton } from "@/components/ui/CounterButton";
 import { AppShell } from "@/components/layout/app-shell";
 import { AppHeader } from "@/components/header/app-header";
@@ -31,45 +32,43 @@ export default function RegistroPage() {
     }
 
     try {
-      setLoading(true);
+  setLoading(true);
 
-      const token = localStorage.getItem("token");
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/registros`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            pollitos,
-            gallinas,
-            huevos,
-            notas,
-            fecha: new Date().toISOString(),
-          }),
-        }
-      );
+  // Registrar aves (pollitos)
+  if (pollitos > 0) {
+    await fetchWithAuth("/aves", {
+      method: "POST",
+      body: JSON.stringify({ tipo: "pollito", cantidad: pollitos, notas }),
+    });
+  }
 
-      if (!res.ok) {
-        setError("No se pudo guardar el registro. Intenta de nuevo.");
-        return;
-      }
+  // Registrar aves (gallinas)
+  if (gallinas > 0) {
+    await fetchWithAuth("/aves", {
+      method: "POST",
+      body: JSON.stringify({ tipo: "gallina", cantidad: gallinas, notas }),
+    });
+  }
 
-      // Tarea 3 y 5: confirmación visual y aviso de éxito
-      setSuccess(true);
-      setPollitos(0);
-      setGallinas(0);
-      setHuevos(0);
-      setNotas("");
+  // Registrar huevos - necesita ave_id, usamos 1 por defecto
+  if (huevos > 0) {
+    await fetchWithAuth("/produccion-huevos", {
+      method: "POST",
+      body: JSON.stringify({ ave_id: 1, cantidad_huevos: huevos, notas }),
+    });
+  }
 
-      setTimeout(() => setSuccess(false), 4000);
-    } catch {
-      setError("Error de conexión. Intenta de nuevo.");
-    } finally {
-      setLoading(false);
-    }
+  setSuccess(true);
+  setPollitos(0);
+  setGallinas(0);
+  setHuevos(0);
+  setNotas("");
+  setTimeout(() => setSuccess(false), 4000);
+} catch {
+  setError("Error de conexión. Intenta de nuevo.");
+} finally {
+  setLoading(false);
+}
   };
 
   return (
