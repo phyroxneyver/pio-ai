@@ -58,6 +58,8 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(imagenes_router)
 app.include_router(alertas_router)
+from app.api.debug import router as debug_router
+app.include_router(debug_router)
 
 
 # ---------------------------------------------------------------------------
