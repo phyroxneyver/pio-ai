@@ -67,34 +67,7 @@ app.include_router(debug_router)
 # ---------------------------------------------------------------------------
 @app.on_event("startup")
 def startup_db():
-    Base.metadata.create_all(bind=engine)
-
-    # Crear usuario admin por defecto si no existe
-    db = SessionLocal()
-    try:
-        admin_email = "admin@pioai.com"
-        admin_pass = "123456"
-        db_user = db.query(User).filter(User.email == admin_email).first()
-        if not db_user:
-            hashed_pass = get_password_hash(admin_pass)
-            new_user = User(
-                email=admin_email,
-                hashed_password=hashed_pass,
-                role="admin",
-                is_active=True,
-            )
-            db.add(new_user)
-            db.commit()
-            print("✅ Admin user created successfully")
-        else:
-            # Asegurar que el admin existente tenga rol admin
-            if db_user.role != "admin":
-                db_user.role = "admin"
-                db.commit()
-                print("✅ Admin role updated")
-    finally:
-        db.close()
-
+    print("Iniciando aplicación. (Migraciones y tablas creadas manualmente para evitar timeout en Vercel)")
 
 # ---------------------------------------------------------------------------
 # Rutas públicas
