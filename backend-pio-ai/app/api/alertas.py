@@ -1,3 +1,4 @@
+from typing import Optional
 """
 Router de alertas y notificaciones — Sistema de monitoreo avícola.
 
@@ -17,10 +18,10 @@ Endpoints:
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
-from app.core.database import get_db
-from app.core.deps import get_current_active_user, require_role
-from app.models.users import User
-from app.schemas.alertas import (
+from ..core.database import get_db
+from ..core.deps import get_current_active_user, require_role
+from ..models.users import User
+from ..schemas.alertas import (
     AlertaAtender,
     AlertaCreate,
     AlertaEliminar,
@@ -30,7 +31,7 @@ from app.schemas.alertas import (
     NotificacionListResponse,
     NotificacionResponse,
 )
-from app.services.alertas import (
+from ..services.alertas import (
     atender_alerta,
     crear_alerta,
     eliminar_alerta,
@@ -82,13 +83,13 @@ def crear_nueva_alerta(
     summary="Listar alertas del sistema",
 )
 def listar_todas_alertas(
-    estado: str | None = Query(
+    estado: Optional[str] = Query(
         None, description="Filtrar por estado: activa, leida, atendida",
     ),
-    prioridad: str | None = Query(
+    prioridad: Optional[str] = Query(
         None, description="Filtrar por prioridad: baja, media, alta, critica",
     ),
-    tipo: str | None = Query(
+    tipo: Optional[str] = Query(
         None, description="Filtrar por tipo: mortalidad, temperatura, etc.",
     ),
     incluir_eliminadas: bool = Query(

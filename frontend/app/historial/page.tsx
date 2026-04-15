@@ -24,8 +24,8 @@ export default function HistorialPage() {
       fetchWithAuth("/produccion-huevos").then(r => r.json()),
     ])
       .then(([avesData, prodData]) => {
-        setAves(avesData);
-        setProduccion(prodData);
+        setAves(Array.isArray(avesData) ? avesData : []);
+        setProduccion(Array.isArray(prodData) ? prodData : []);
       })
       .finally(() => setLoading(false));
   }, []);

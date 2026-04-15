@@ -12,8 +12,8 @@ SECRET_KEY = os.getenv("SECRET_KEY", "unabuenallavesecretaporquenoestabadefinida
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30))
 
-# Contexto bcrypt para contraseñas
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Usamos pbkdf2_sha256 en lugar de bcrypt porque es Python puro y no rompe en Vercel
+pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 
 def get_password_hash(password: str) -> str:
     """Toma una contraseña en texto plano y devuelve el hash seguro."""

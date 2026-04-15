@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { fetchWithAuth } from "@/lib/api";
 import { CounterButton } from "@/components/ui/CounterButton";
 import { AppShell } from "@/components/layout/app-shell";
@@ -12,6 +12,7 @@ import { RouteGuard } from "@/components/auth/route-guard";
 import { ClipboardList, CheckCircle } from "lucide-react";
 
 export default function RegistroPage() {
+  const [aves, setAves] = useState<any[]>([]);
   const [pollitos, setPollitos] = useState(0);
   const [gallinas, setGallinas] = useState(0);
   const [huevos, setHuevos] = useState(0);
@@ -19,6 +20,13 @@ export default function RegistroPage() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    fetchWithAuth("/aves")
+      .then(r => r.json())
+      .then(data => setAves(data))
+      .catch(err => console.error("Error al cargar aves:", err));
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,43 +40,52 @@ export default function RegistroPage() {
     }
 
     try {
-  setLoading(true);
+      setLoading(true);
 
-  // Registrar aves (pollitos)
-  if (pollitos > 0) {
-    await fetchWithAuth("/aves", {
-      method: "POST",
-      body: JSON.stringify({ tipo: "pollito", cantidad: pollitos, notas }),
-    });
-  }
+      // Registrar aves (pollitos)
+      if (pollitos > 0) {
+        await fetchWithAuth("/aves", {
+          method: "POST",
+          body: JSON.stringify({ tipo: "pollito", cantidad: pollitos, notas }),
+        });
+      }
 
-  // Registrar aves (gallinas)
-  if (gallinas > 0) {
-    await fetchWithAuth("/aves", {
-      method: "POST",
-      body: JSON.stringify({ tipo: "gallina", cantidad: gallinas, notas }),
-    });
-  }
+      // Registrar aves (gallinas)
+      if (gallinas > 0) {
+        await fetchWithAuth("/aves", {
+          method: "POST",
+          body: JSON.stringify({ tipo: "gallina", cantidad: gallinas, notas }),
+        });
+      }
 
-  // Registrar huevos - necesita ave_id, usamos 1 por defecto
-  if (huevos > 0) {
-    await fetchWithAuth("/produccion-huevos", {
-      method: "POST",
-      body: JSON.stringify({ ave_id: 1, cantidad_huevos: huevos, notas }),
-    });
-  }
+      // Registrar huevos - necesita un ave_id real
+      if (huevos > 0) {
+        if (aves.length === 0) {
+          setError("No puedes registrar huevos si no hay aves registradas.");
+          setLoading(false);
+          return;
+        }
+        
+        // Usamos el ID de la primera ave que encontremos (normalmente gallinas)
+        const targetAve = aves.find(a => a.tipo === "gallina") || aves[0];
+        
+        await fetchWithAuth("/produccion-huevos", {
+          method: "POST",
+          body: JSON.stringify({ ave_id: targetAve.id, cantidad_huevos: huevos, notas }),
+        });
+      }
 
-  setSuccess(true);
-  setPollitos(0);
-  setGallinas(0);
-  setHuevos(0);
-  setNotas("");
-  setTimeout(() => setSuccess(false), 4000);
-} catch {
-  setError("Error de conexión. Intenta de nuevo.");
-} finally {
-  setLoading(false);
-}
+      setSuccess(true);
+      setPollitos(0);
+      setGallinas(0);
+      setHuevos(0);
+      setNotas("");
+      setTimeout(() => setSuccess(false), 4000);
+    } catch {
+      setError("Error de conexión. Intenta de nuevo.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

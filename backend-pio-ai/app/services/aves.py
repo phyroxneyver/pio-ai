@@ -1,6 +1,7 @@
+from typing import List, Optional
 from sqlalchemy.orm import Session
-from app.models.aves import Ave, ProduccionHuevos
-from app.schemas.aves import AveCreate, AveUpdate, ProduccionCreate, ProduccionUpdate
+from ..models.aves import Ave, ProduccionHuevos
+from ..schemas.aves import AveCreate, AveUpdate, ProduccionCreate, ProduccionUpdate
 
 
 
@@ -18,11 +19,11 @@ def create_ave(db: Session, ave: AveCreate) -> Ave:
     return db_ave
 
 
-def get_aves(db: Session) -> list[Ave]:
+def get_aves(db: Session) -> List[Ave]:
     return db.query(Ave).all()
 
 
-def update_ave(db: Session, ave_id: int, datos: AveUpdate) -> Ave | None:
+def update_ave(db: Session, ave_id: int, datos: AveUpdate) -> Optional[Ave]:
     db_ave = db.query(Ave).filter(Ave.id == ave_id).first()
     if not db_ave:
         return None
@@ -47,11 +48,11 @@ def create_produccion(db: Session, produccion: ProduccionCreate) -> ProduccionHu
     return db_produccion
 
 
-def get_producciones(db: Session) -> list[ProduccionHuevos]:
+def get_producciones(db: Session) -> List[ProduccionHuevos]:
     return db.query(ProduccionHuevos).all()
 
 
-def update_produccion(db: Session, produccion_id: int, datos: ProduccionUpdate) -> ProduccionHuevos | None:
+def update_produccion(db: Session, produccion_id: int, datos: ProduccionUpdate) -> Optional[ProduccionHuevos]:
     db_prod = db.query(ProduccionHuevos).filter(ProduccionHuevos.id == produccion_id).first()
     if not db_prod:
         return None

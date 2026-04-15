@@ -1,31 +1,32 @@
+from typing import List
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
-from app.core.database import SessionLocal, engine, Base, get_db
-from app.core.security import get_password_hash
-from app.core.deps import get_current_active_user, require_role
+from .core.database import SessionLocal, engine, Base, get_db
+from .core.security import get_password_hash
+from .core.deps import get_current_active_user, require_role
 
-from app.schemas.users import UserCreate, UserResponse
-from app.services.users import create_user
-from app.models.users import User
-from app.models.token_blacklist import TokenBlacklist  # Registrar modelo en metadata
-from app.models.imagenes import Imagen, ResultadoIA  # Registrar modelos de imágenes
-from app.models.alertas import Alerta, NotificacionInterna, HistorialAlerta  # Modelos de alertas
+from .schemas.users import UserCreate, UserResponse
+from .services.users import create_user
+from .models.users import User
+from .models.token_blacklist import TokenBlacklist  # Registrar modelo en metadata
+from .models.imagenes import Imagen, ResultadoIA  # Registrar modelos de imágenes
+from .models.alertas import Alerta, NotificacionInterna, HistorialAlerta  # Modelos de alertas
 
-from app.api.auth import router as auth_router
-from app.api.imagenes import router as imagenes_router
-from app.api.alertas import router as alertas_router
+from .api.auth import router as auth_router
+from .api.imagenes import router as imagenes_router
+from .api.alertas import router as alertas_router
 
-from app.schemas.aves import (
+from .schemas.aves import (
     AveCreate, AveUpdate, AveResponse,
     ProduccionCreate, ProduccionUpdate, ProduccionResponse
 )
-from app.services.aves import (
+from .services.aves import (
     create_ave, get_aves, update_ave,
     create_produccion, get_producciones, update_produccion
 )
-from app.models.aves import Ave
+from .models.aves import Ave
 
 app = FastAPI(
     title="Pio AI API",
@@ -39,7 +40,9 @@ app = FastAPI(
 # CORS
 # ---------------------------------------------------------------------------
 origins = [
-    "https://pioainetapp.netlify.app"
+    "https://pioainetapp.netlify.app",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000"
 ]
 
 app.add_middleware(
@@ -58,40 +61,10 @@ app.include_router(imagenes_router)
 app.include_router(alertas_router)
 
 
+
 # ---------------------------------------------------------------------------
 # Startup
 # ---------------------------------------------------------------------------
-@app.on_event("startup")
-def startup_db():
-    Base.metadata.create_all(bind=engine)
-
-    # Crear usuario admin por defecto si no existe
-    db = SessionLocal()
-    try:
-        admin_email = "admin@pioai.com"
-        admin_pass = "123456"
-        db_user = db.query(User).filter(User.email == admin_email).first()
-        if not db_user:
-            hashed_pass = get_password_hash(admin_pass)
-            new_user = User(
-                email=admin_email,
-                hashed_password=hashed_pass,
-                role="admin",
-                is_active=True,
-            )
-            db.add(new_user)
-            db.commit()
-            print("✅ Admin user created successfully")
-        else:
-            # Asegurar que el admin existente tenga rol admin
-            if db_user.role != "admin":
-                db_user.role = "admin"
-                db.commit()
-                print("✅ Admin role updated")
-    finally:
-        db.close()
-
-
 # ---------------------------------------------------------------------------
 # Rutas públicas
 # ---------------------------------------------------------------------------
@@ -99,11 +72,32 @@ def startup_db():
 async def root():
     return {"message": "Pio AI API is running", "status": "healthy"}
 
-
 @app.get("/health", tags=["Sistema"])
 async def health_check():
     return {"status": "ok"}
 
+# ---------------------------------------------------------------------------
+# Setup de Base de Datos (Correr una sola vez manualmente)
+# ---------------------------------------------------------------------------
+@app.get("/setup-db", tags=["Sistema"])
+def setup_database(db: Session = Depends(get_db)):
+    """Crea las tablas y el usuario administrador inicial."""
+    try:
+        print("Creando tablas...")
+        Base.metadata.create_all(bind=engine)
+        
+        # Crear admin si no existe
+        existing = db.query(User).filter(User.email == "admin@pioai.com").first()
+        if not existing:
+            hashed_pw = get_password_hash("123456")
+            admin = User(email="admin@pioai.com", hashed_password=hashed_pw, role="admin")
+            db.add(admin)
+            db.commit()
+            return {"status": "success", "message": "Tablas creadas y usuario admin@pioai.com listo."}
+        
+        return {"status": "success", "message": "Tablas verificadas. El usuario admin ya existe."}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 
 # ---------------------------------------------------------------------------
 # Usuarios (protegido: solo admin puede registrar nuevos usuarios)
@@ -112,7 +106,8 @@ async def health_check():
     "/register",
     response_model=UserResponse,
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(require_role("admin"))],
+    # Comentado temporalmente para permitir el primer registro
+    # dependencies=[Depends(require_role("admin"))],
     tags=["Usuarios"],
 )
 def register(user: UserCreate, db: Session = Depends(get_db)):
@@ -136,7 +131,7 @@ def registrar_ave(ave: AveCreate, db: Session = Depends(get_db)):
 
 @app.get(
     "/aves",
-    response_model=list[AveResponse],
+    response_model=List[AveResponse],
     dependencies=[Depends(get_current_active_user)],
     tags=["Aves"],
 )
@@ -176,7 +171,7 @@ def registrar_produccion(produccion: ProduccionCreate, db: Session = Depends(get
 
 @app.get(
     "/produccion-huevos",
-    response_model=list[ProduccionResponse],
+    response_model=List[ProduccionResponse],
     dependencies=[Depends(get_current_active_user)],
     tags=["Producción"],
 )

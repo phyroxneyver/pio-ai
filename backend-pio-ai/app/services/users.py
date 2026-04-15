@@ -5,9 +5,9 @@ Contiene la lógica de negocio para creación y gestión de usuarios.
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 
-from app.core.security import get_password_hash
-from app.models.users import User
-from app.schemas.users import UserCreate
+from ..core.security import get_password_hash
+from ..models.users import User
+from ..schemas.users import UserCreate
 
 
 def create_user(db: Session, user: UserCreate) -> User:
