@@ -29,8 +29,10 @@ from app.models.aves import Ave
 
 app = FastAPI(
     title="Pio AI API",
-    description="Backend para el proyecto Pio AI — Sistema IoT Avícola",
-    version="0.2.0",
+    description="Backend para el proyecto Pio AI — Sistema IoT de monitoreo avícola con IA",
+    version="0.4.0",
+    docs_url="/docs",
+    redoc_url="/redoc",
 )
 
 # ---------------------------------------------------------------------------
@@ -96,12 +98,12 @@ def startup_db():
 # ---------------------------------------------------------------------------
 # Rutas públicas
 # ---------------------------------------------------------------------------
-@app.get("/")
+@app.get("/", tags=["Sistema"])
 async def root():
     return {"message": "Pio AI API is running", "status": "healthy"}
 
 
-@app.get("/health")
+@app.get("/health", tags=["Sistema"])
 async def health_check():
     return {"status": "ok"}
 
@@ -114,6 +116,7 @@ async def health_check():
     response_model=UserResponse,
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(require_role("admin"))],
+    tags=["Usuarios"],
 )
 def register(user: UserCreate, db: Session = Depends(get_db)):
     """Registrar un nuevo usuario. Solo accesible por administradores."""
@@ -128,6 +131,7 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
     response_model=AveResponse,
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(get_current_active_user)],
+    tags=["Aves"],
 )
 def registrar_ave(ave: AveCreate, db: Session = Depends(get_db)):
     return create_ave(db=db, ave=ave)
@@ -137,6 +141,7 @@ def registrar_ave(ave: AveCreate, db: Session = Depends(get_db)):
     "/aves",
     response_model=list[AveResponse],
     dependencies=[Depends(get_current_active_user)],
+    tags=["Aves"],
 )
 def listar_aves(db: Session = Depends(get_db)):
     return get_aves(db=db)
@@ -146,6 +151,7 @@ def listar_aves(db: Session = Depends(get_db)):
     "/aves/{ave_id}",
     response_model=AveResponse,
     dependencies=[Depends(get_current_active_user)],
+    tags=["Aves"],
 )
 def editar_ave(ave_id: int, datos: AveUpdate, db: Session = Depends(get_db)):
     ave = update_ave(db=db, ave_id=ave_id, datos=datos)
@@ -162,6 +168,7 @@ def editar_ave(ave_id: int, datos: AveUpdate, db: Session = Depends(get_db)):
     response_model=ProduccionResponse,
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(get_current_active_user)],
+    tags=["Producción"],
 )
 def registrar_produccion(produccion: ProduccionCreate, db: Session = Depends(get_db)):
     ave = db.query(Ave).filter(Ave.id == produccion.ave_id).first()
@@ -174,6 +181,7 @@ def registrar_produccion(produccion: ProduccionCreate, db: Session = Depends(get
     "/produccion-huevos",
     response_model=list[ProduccionResponse],
     dependencies=[Depends(get_current_active_user)],
+    tags=["Producción"],
 )
 def listar_produccion(db: Session = Depends(get_db)):
     return get_producciones(db=db)
@@ -183,6 +191,7 @@ def listar_produccion(db: Session = Depends(get_db)):
     "/produccion-huevos/{produccion_id}",
     response_model=ProduccionResponse,
     dependencies=[Depends(get_current_active_user)],
+    tags=["Producción"],
 )
 def editar_produccion(
     produccion_id: int, datos: ProduccionUpdate, db: Session = Depends(get_db)
