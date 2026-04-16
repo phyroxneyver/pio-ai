@@ -6,4 +6,8 @@ python-dotenv==1.0.1
 passlib[bcrypt]==1.7.4
 email-validator==2.2.0
 python-multipart==0.0.12
+<<<<<<< HEAD
 anthropic==0.25.0
+=======
+python-jose[cryptography]==3.3.0
+>>>>>>> 52d5c35631f5df9ae3f0b78946f76499418e5e58

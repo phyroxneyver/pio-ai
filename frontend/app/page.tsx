@@ -8,6 +8,8 @@ import {
   Thermometer,
   Warehouse,
 } from "lucide-react";
+
+import ImageUploadButton from "@/components/modal/ImageUploadButton";
 import { RouteGuard } from "@/components/auth/route-guard";
 import { AppHeader } from "@/components/header/app-header";
 import { AppShell } from "@/components/layout/app-shell";
@@ -230,6 +232,7 @@ export default function HomePage() {
                   <button className="secondary-button rounded-2xl px-4 py-3 text-sm font-medium transition duration-300 hover:-translate-y-0.5">
                     Abrir perfil
                   </button>
+                  <ImageUploadButton />
                 </div>
               </div>
             </div>
