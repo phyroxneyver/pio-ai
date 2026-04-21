@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { House, LogOut, UserRound } from "lucide-react";
+import { House, LogOut, UserRound, Camera } from "lucide-react";
 import { clearSession } from "@/lib/session";
 import { useToast } from "@/components/ui/toast-provider";
 
 const links = [
-    { href: "/", label: "Inicio", icon: House },
-    { href: "/perfil", label: "Perfil", icon: UserRound },
+  { href: "/", label: "Inicio", icon: House },
+  { href: "/captura", label: "Cámara", icon: Camera },
+  { href: "/perfil", label: "Perfil", icon: UserRound },
 ];
 
 export function TabBar() {

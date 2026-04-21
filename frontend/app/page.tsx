@@ -1,3 +1,5 @@
+
+"use client";
 import {
   Activity,
   AlertTriangle,
@@ -8,7 +10,8 @@ import {
   Thermometer,
   Warehouse,
 } from "lucide-react";
-
+import { useEffect, useState } from "react";
+import { fetchWithAuth } from "@/lib/api";
 import ImageUploadButton from "@/components/modal/ImageUploadButton";
 import { RouteGuard } from "@/components/auth/route-guard";
 import { AppHeader } from "@/components/header/app-header";
@@ -17,33 +20,6 @@ import { PageContainer } from "@/components/layout/page-container";
 import { Sidebar } from "@/components/layout/sidebar";
 import { TabBar } from "@/components/layout/tab-bar";
 
-const stats = [
-  {
-    title: "Aves registradas",
-    value: "1,248",
-    note: "Actualizado hoy",
-    icon: Egg,
-  },
-  {
-    title: "Galpones activos",
-    value: "08",
-    note: "Todos operativos",
-    icon: Warehouse,
-  },
-  {
-    title: "Alertas",
-    value: "03",
-    note: "Revisión recomendada",
-    icon: AlertTriangle,
-  },
-  {
-    title: "Sensores",
-    value: "16",
-    note: "Conectados",
-    icon: Activity,
-  },
-];
-
 const recentEvents = [
   "Registro de lote actualizado hace 8 min",
   "Sensor de temperatura sincronizado",
@@ -51,7 +27,37 @@ const recentEvents = [
   "Perfil de usuario consultado",
 ];
 
+
 export default function HomePage() {
+  const [totalAves, setTotalAves] = useState("...");
+  const [totalHuevos, setTotalHuevos] = useState("...");
+
+  const stats = [
+    { title: "Aves registradas", value: totalAves, note: "Actualizado hoy", icon: Egg },
+    { title: "Galpones activos", value: "08", note: "Todos operativos", icon: Warehouse },
+    { title: "Alertas", value: "03", note: "Revisión recomendada", icon: AlertTriangle },
+    { title: "Huevos producidos", value: totalHuevos, note: "Total registrado", icon: Egg },
+  ];
+
+  useEffect(() => {
+    fetchWithAuth("/aves")
+      .then(r => r.json())
+      .then(data => {
+        const total = data.reduce((sum: number, a: { cantidad: number }) => sum + a.cantidad, 0);
+        setTotalAves(total.toLocaleString());
+      })
+      .catch(() => setTotalAves("N/A"));
+
+    fetchWithAuth("/produccion-huevos")
+      .then(r => r.json())
+      .then(data => {
+        const total = data.reduce((sum: number, p: { cantidad_huevos: number }) => sum + p.cantidad_huevos, 0);
+        setTotalHuevos(total.toLocaleString());
+      })
+      .catch(() => setTotalHuevos("N/A"));
+  }, []);
+
+ 
   return (
     <RouteGuard>
       <AppShell
@@ -232,7 +238,6 @@ export default function HomePage() {
                   <button className="secondary-button rounded-2xl px-4 py-3 text-sm font-medium transition duration-300 hover:-translate-y-0.5">
                     Abrir perfil
                   </button>
-                  <ImageUploadButton />
                 </div>
               </div>
             </div>

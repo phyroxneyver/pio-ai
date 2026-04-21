@@ -5,3 +5,5 @@ __pycache__/
 .env
 sql_app.db
 .DS_Store
+uploads/
+.env*.local

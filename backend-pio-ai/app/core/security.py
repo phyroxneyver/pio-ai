@@ -8,12 +8,12 @@ from dotenv import load_dotenv
 # Cargar variables de entorno
 load_dotenv()
 
-SECRET_KEY = os.getenv("SECRET_KEY")
+SECRET_KEY = os.getenv("SECRET_KEY", "unabuenallavesecretaporquenoestabadefinida")
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30))
 
-# Contexto bcrypt para contraseñas
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Usamos pbkdf2_sha256 en lugar de bcrypt porque es Python puro y no rompe en Vercel
+pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 
 def get_password_hash(password: str) -> str:
     """Toma una contraseña en texto plano y devuelve el hash seguro."""
@@ -38,10 +38,6 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     
     to_encode.update({"exp": expire})
     
-    # Validación mínima de SECRET_KEY
-    if not SECRET_KEY:
-        raise ValueError("SECRET_KEY no está configurada en el entorno")
-        
     try:
         encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
         return encoded_jwt
