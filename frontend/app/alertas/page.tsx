@@ -59,7 +59,7 @@ export default function AlertasPage() {
     <RouteGuard>
       <AppShell header={<AppHeader />} sidebar={<Sidebar />} tabBar={<TabBar />}>
         <PageContainer>
-          <div className="mx-auto max-w-3xl space-y-8">
+          <div className="w-full space-y-6">
             <div>
               <span className="inline-flex items-center gap-2 rounded-full bg-[var(--egg)] px-3 py-1 text-xs font-semibold text-[var(--primary-strong)]">
                 <Bell className="h-3.5 w-3.5" />
