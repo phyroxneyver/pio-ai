@@ -1,5 +1,6 @@
 const CACHE_NAME = "pio-ai-v1";
 const OFFLINE_URL = "/offline";
+const BACKEND_URL = "https://backend-pio-ai.vercel.app";
 
 const CACHED_URLS = [
   "/",
@@ -26,6 +27,11 @@ self.addEventListener("activate", (event) => {
 });
 
 self.addEventListener("fetch", (event) => {
+  // NO interceptar peticiones al backend
+  if (event.request.url.startsWith(BACKEND_URL)) {
+    return;
+  }
+
   if (event.request.mode === "navigate") {
     event.respondWith(
       fetch(event.request).catch(() =>
