@@ -125,7 +125,7 @@ export default function AlertasPage() {
             </div>
           </div>
 
-          {/* MODAL - Tarea 3 Etapa 4 */}
+          {/* MODAL ALERTA */}
           {modalAlerta && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4" onClick={() => setModalAlerta(null)}>
               <div className="w-full max-w-md rounded-[32px] bg-[var(--background)] p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
