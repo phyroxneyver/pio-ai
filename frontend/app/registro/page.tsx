@@ -25,7 +25,7 @@ export default function RegistroPage() {
     setError("");
     setSuccess(false);
 
-    // Tarea 4: validar que al menos un campo tenga valor
+    // Tarea 4 validar que al menos un campo tenga valor
     if (pollitos === 0 && gallinas === 0 && huevos === 0) {
       setError("Debes registrar al menos un valor antes de guardar.");
       return;
@@ -50,7 +50,8 @@ export default function RegistroPage() {
     });
   }
 
-  // Registrar huevos - necesita ave_id, usamos 1 por defecto
+  // Registrar huevos - necesita ave_id, usamos code .
+  // 1 por defecto
   if (huevos > 0) {
     await fetchWithAuth("/produccion-huevos", {
       method: "POST",
