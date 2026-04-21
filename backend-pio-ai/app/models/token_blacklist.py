@@ -5,7 +5,7 @@ para impedir su reutilización hasta que expire naturalmente.
 """
 from sqlalchemy import Column, Integer, String, DateTime
 from datetime import datetime, timezone
-from app.core.database import Base
+from ..core.database import Base
 
 
 class TokenBlacklist(Base):

@@ -1,3 +1,10 @@
+@router.post("/{imagen_id}/analizar")
+def analizar_imagen(imagen_id: int, db: Session = Depends(get_db), 
+                    current_user: User = Depends(get_current_active_user)):
+    from ..services.ia_service import analizar_imagen_con_ia
+    resultado = analizar_imagen_con_ia(db=db, imagen_id=imagen_id)
+    return resultado
+
 """
 Router de imágenes — Endpoints protegidos para gestión de imágenes avícolas.
 
@@ -11,15 +18,15 @@ Endpoints:
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from sqlalchemy.orm import Session
 
-from app.core.database import get_db
-from app.core.deps import get_current_active_user, require_role
-from app.models.users import User
-from app.schemas.imagenes import (
+from ..core.database import get_db
+from ..core.deps import get_current_active_user, require_role
+from ..models.users import User
+from ..schemas.imagenes import (
     ImagenDeleteResponse,
     ImagenListResponse,
     ImagenResponse,
 )
-from app.services.imagenes import (
+from ..services.imagenes import (
     cleanup_temp_files,
     delete_imagen,
     get_imagen_by_id,

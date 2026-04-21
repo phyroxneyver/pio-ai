@@ -11,7 +11,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
 
-from app.core.database import Base
+from ..core.database import Base
 
 
 class Alerta(Base):

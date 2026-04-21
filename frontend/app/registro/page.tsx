@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { fetchWithAuth } from "@/lib/api";
 import { CounterButton } from "@/components/ui/CounterButton";
 import { AppShell } from "@/components/layout/app-shell";
@@ -12,6 +12,7 @@ import { RouteGuard } from "@/components/auth/route-guard";
 import { ClipboardList, CheckCircle, Baby, Bird, Egg } from "lucide-react";
 
 export default function RegistroPage() {
+  const [aves, setAves] = useState<any[]>([]);
   const [pollitos, setPollitos] = useState(0);
   const [gallinas, setGallinas] = useState(0);
   const [huevos, setHuevos] = useState(0);
@@ -19,6 +20,13 @@ export default function RegistroPage() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    fetchWithAuth("/aves")
+      .then(r => r.json())
+      .then(data => setAves(data))
+      .catch(err => console.error("Error al cargar aves:", err));
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,6 +41,7 @@ export default function RegistroPage() {
     try {
       setLoading(true);
 
+      // Registrar aves (pollitos)
       if (pollitos > 0) {
         await fetchWithAuth("/aves", {
           method: "POST",
@@ -40,6 +49,7 @@ export default function RegistroPage() {
         });
       }
 
+      // Registrar aves (gallinas)
       if (gallinas > 0) {
         await fetchWithAuth("/aves", {
           method: "POST",
@@ -47,10 +57,17 @@ export default function RegistroPage() {
         });
       }
 
+      // Registrar huevos usando ave_id real
       if (huevos > 0) {
+        if (aves.length === 0) {
+          setError("No puedes registrar huevos si no hay aves registradas.");
+          setLoading(false);
+          return;
+        }
+        const targetAve = aves.find(a => a.tipo === "gallina") || aves[0];
         await fetchWithAuth("/produccion-huevos", {
           method: "POST",
-          body: JSON.stringify({ ave_id: 1, cantidad_huevos: huevos, notas }),
+          body: JSON.stringify({ ave_id: targetAve.id, cantidad_huevos: huevos, notas }),
         });
       }
 
@@ -75,7 +92,6 @@ export default function RegistroPage() {
         <PageContainer>
           <div className="w-full space-y-6">
 
-            {/* Título */}
             <div>
               <span className="inline-flex items-center gap-2 rounded-full bg-[var(--egg)] px-3 py-1 text-xs font-semibold text-[var(--primary-strong)]">
                 <ClipboardList className="h-3.5 w-3.5" />
@@ -85,7 +101,6 @@ export default function RegistroPage() {
               <p className="mt-1 text-sm text-[var(--muted)]">Registra el conteo manual de aves y huevos del día.</p>
             </div>
 
-            {/* Mensajes */}
             {success && (
               <div className="flex items-center gap-3 rounded-2xl bg-green-500/10 border border-green-500/20 px-4 py-4">
                 <CheckCircle className="h-5 w-5 text-green-500 shrink-0" />
@@ -99,10 +114,7 @@ export default function RegistroPage() {
             )}
 
             <form onSubmit={handleSubmit} className="space-y-4">
-
-              {/* Grid de contadores */}
               <div className="grid gap-4 sm:grid-cols-3">
-                {/* Pollitos */}
                 <div className="glass-card rounded-[28px] p-6 space-y-4">
                   <div className="flex items-center gap-3">
                     <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-yellow-500/10">
@@ -116,7 +128,6 @@ export default function RegistroPage() {
                   <CounterButton label="" value={pollitos} onChange={setPollitos} />
                 </div>
 
-                {/* Gallinas */}
                 <div className="glass-card rounded-[28px] p-6 space-y-4">
                   <div className="flex items-center gap-3">
                     <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-500/10">
@@ -130,7 +141,6 @@ export default function RegistroPage() {
                   <CounterButton label="" value={gallinas} onChange={setGallinas} />
                 </div>
 
-                {/* Huevos */}
                 <div className="glass-card rounded-[28px] p-6 space-y-4">
                   <div className="flex items-center gap-3">
                     <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--egg)]">
@@ -145,7 +155,6 @@ export default function RegistroPage() {
                 </div>
               </div>
 
-              {/* Resumen total */}
               {total > 0 && (
                 <div className="glass-card rounded-[24px] px-5 py-4 flex items-center justify-between">
                   <p className="text-sm font-medium text-[var(--muted)]">Total a registrar</p>
@@ -153,7 +162,6 @@ export default function RegistroPage() {
                 </div>
               )}
 
-              {/* Notas */}
               <div className="glass-card rounded-[28px] p-6 space-y-3">
                 <label className="text-sm font-medium text-[var(--muted)] uppercase tracking-widest">
                   Notas (opcional)
@@ -167,7 +175,6 @@ export default function RegistroPage() {
                 />
               </div>
 
-              {/* Botón guardar */}
               <button
                 type="submit"
                 disabled={loading}
@@ -175,7 +182,6 @@ export default function RegistroPage() {
               >
                 {loading ? "Guardando..." : "Guardar registro"}
               </button>
-
             </form>
           </div>
         </PageContainer>

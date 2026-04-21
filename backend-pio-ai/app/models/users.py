@@ -3,7 +3,7 @@ Modelo de usuario con soporte de roles.
 Roles disponibles: 'admin', 'usuario'
 """
 from sqlalchemy import Column, Integer, String, Boolean
-from app.core.database import Base
+from ..core.database import Base
 
 
 class User(Base):

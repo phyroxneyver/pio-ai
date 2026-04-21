@@ -3,7 +3,7 @@ Schemas Pydantic para el módulo de imágenes.
 """
 from pydantic import BaseModel, Field
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 
 
 # ---------------------------------------------------------------------------
@@ -46,7 +46,7 @@ class ImagenResponse(BaseModel):
 class ImagenListResponse(BaseModel):
     """Respuesta paginada / listado."""
     total: int
-    imagenes: list[ImagenResponse]
+    imagenes: List[ImagenResponse]
 
 
 class ImagenDeleteResponse(BaseModel):

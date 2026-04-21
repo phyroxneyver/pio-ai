@@ -1,3 +1,4 @@
+from typing import Optional
 """
 Dependencias de seguridad (middleware) para FastAPI.
 
@@ -11,10 +12,10 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from jose import jwt, JWTError
 
-from app.core.database import get_db
-from app.core.security import SECRET_KEY, ALGORITHM
-from app.models.users import User
-from app.services.auth import is_token_blacklisted
+from .database import get_db
+from .security import SECRET_KEY, ALGORITHM
+from ..models.users import User
+from ..services.auth import is_token_blacklisted
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 
@@ -42,7 +43,7 @@ async def get_current_user(
     # --- Decodificar token ---
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        email: str | None = payload.get("sub")
+        email: Optional[str] = payload.get("sub")
         if email is None:
             raise credentials_exception
     except JWTError:
