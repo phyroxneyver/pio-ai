@@ -1,12 +1,4 @@
-"""
-Modelo de imágenes para monitoreo avícola.
-
-Almacena metadatos de cada imagen subida y su relación
-con el resultado de la IA (conteo de pollitos).
-"""
-from sqlalchemy import (
-    Column, Integer, String, DateTime, ForeignKey, Text,
-)
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
 
@@ -26,7 +18,6 @@ class Imagen(Base):
     usuario_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
-    # Relación 1:1 con resultado IA (se crea en Etapa 3)
     resultado_ia = relationship(
         "ResultadoIA",
         back_populates="imagen",
@@ -37,21 +28,16 @@ class Imagen(Base):
 
 
 class ResultadoIA(Base):
-    """Resultado del análisis IA asociado a una imagen."""
     __tablename__ = "resultados_ia"
 
     id = Column(Integer, primary_key=True, index=True)
-    imagen_id = Column(
-        Integer, ForeignKey("imagenes.id", ondelete="CASCADE"),
-        unique=True, nullable=False,
-    )
+    imagen_id = Column(Integer, ForeignKey("imagenes.id", ondelete="CASCADE"), unique=True, nullable=False)
     conteo_pollitos = Column(Integer, nullable=True)
     confianza = Column(String(20), nullable=True)
-    estado = Column(
-        String(20), nullable=False, default="pendiente",
-    )  # pendiente | procesando | completado | error
+    estado = Column(String(20), nullable=False, default="pendiente")
     error_detalle = Column(Text, nullable=True)
     procesado_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    coordenadas = Column(Text, nullable=True)
 
     imagen = relationship("Imagen", back_populates="resultado_ia")
