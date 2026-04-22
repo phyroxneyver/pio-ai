@@ -1,12 +1,12 @@
 import anthropic
 import base64
-import re
-from pathlib import Path
+import httpx
+import json
 from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 from ..models.imagenes import Imagen, ResultadoIA
 
-client = anthropic.Anthropic() 
+client = anthropic.Anthropic()
 
 def analizar_imagen_con_ia(db: Session, imagen_id: int) -> ResultadoIA:
     """Analiza una imagen con Claude Vision y actualiza el ResultadoIA."""
@@ -17,14 +17,14 @@ def analizar_imagen_con_ia(db: Session, imagen_id: int) -> ResultadoIA:
     if not imagen or not resultado:
         raise ValueError("Imagen o ResultadoIA no encontrado")
     
-   
     resultado.estado = "procesando"
     db.commit()
     
     try:
-        # Leer imagen del disco
-        ruta = Path(imagen.ruta)
-        image_data = base64.standard_b64encode(ruta.read_bytes()).decode("utf-8")
+        # ← CAMBIO: descargar de Cloudinary en vez de leer del disco
+        response_img = httpx.get(imagen.ruta, timeout=10.0)
+        response_img.raise_for_status()
+        image_data = base64.standard_b64encode(response_img.content).decode("utf-8")
         media_type = imagen.content_type  # "image/jpeg" o "image/png"
         
         # Llamar a Claude Vision
@@ -54,7 +54,6 @@ def analizar_imagen_con_ia(db: Session, imagen_id: int) -> ResultadoIA:
             }]
         )
         
-        import json
         texto = response.content[0].text.strip()
         datos = json.loads(texto)
         

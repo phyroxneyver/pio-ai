@@ -1,10 +1,3 @@
-@router.post("/{imagen_id}/analizar")
-def analizar_imagen(imagen_id: int, db: Session = Depends(get_db), 
-                    current_user: User = Depends(get_current_active_user)):
-    from ..services.ia_service import analizar_imagen_con_ia
-    resultado = analizar_imagen_con_ia(db=db, imagen_id=imagen_id)
-    return resultado
-
 """
 Router de imágenes — Endpoints protegidos para gestión de imágenes avícolas.
 
@@ -172,3 +165,17 @@ def limpiar_archivos_temporales(
         "detail": f"Limpieza completada. {removed} archivo(s) eliminado(s).",
         "archivos_eliminados": removed,
     }
+
+# ---------------------------------------------------------------------------
+# POST /imagenes/{imagen_id}/analizar — Analizar imagen con IA
+# ---------------------------------------------------------------------------
+@router.post("/{imagen_id}/analizar")
+def analizar_imagen(
+    imagen_id: int, 
+    db: Session = Depends(get_db), 
+    current_user: User = Depends(get_current_active_user)
+):
+    from ..services.ia_service import analizar_imagen_con_ia
+    resultado = analizar_imagen_con_ia(db=db, imagen_id=imagen_id)
+    return resultado
+
