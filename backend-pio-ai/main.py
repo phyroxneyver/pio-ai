@@ -1,14 +1,24 @@
 import sys
 import os
 
-# Asegurar que el directorio de la app sea visible
 sys.path.append(os.path.dirname(__file__))
 
-from app.main import app
+app = None
+handler = None
 
-# Exportar 'app' para que Vercel lo encuentre
-# Si Vercel busca 'handler' por defecto en algunos runtimes, lo asignamos:
-handler = app
+try:
+    from app.main import app
+    handler = app
+except Exception as e:
+    import traceback
+    err_trace = traceback.format_exc()
+    from fastapi import FastAPI
+    app = FastAPI()
+    handler = app
+    
+    @app.api_route("/{path_name:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
+    def catch_all(path_name: str):
+        return {"error": "Import Error", "traceback": err_trace}
 
 if __name__ == "__main__":
     import uvicorn
