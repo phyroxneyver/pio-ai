@@ -27,30 +27,24 @@ export function CameraInput({
       streamRef.current.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
     }
-
     if (videoRef.current) {
       videoRef.current.srcObject = null;
     }
   }
 
   useEffect(() => {
-    return () => {
-      stopStream();
-    };
+    return () => { stopStream(); };
   }, []);
 
   async function openLiveCamera() {
     if (disabled) return;
-
     try {
       setCameraError("");
       setStartingCamera(true);
       stopStream();
 
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: { ideal: "environment" },
-        },
+        video: { facingMode: { ideal: "environment" } },
         audio: false,
       });
 
@@ -60,7 +54,6 @@ export function CameraInput({
       window.setTimeout(async () => {
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
-
           try {
             await videoRef.current.play();
           } catch {
@@ -85,11 +78,7 @@ export function CameraInput({
 
   function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
-
-    if (file) {
-      onCapture(file);
-    }
-
+    if (file) onCapture(file);
     event.currentTarget.value = "";
   }
 
@@ -105,7 +94,6 @@ export function CameraInput({
     canvas.height = height;
 
     const context = canvas.getContext("2d");
-
     if (!context) {
       setCameraError("No se pudo procesar la fotografía capturada.");
       return;
@@ -179,15 +167,14 @@ export function CameraInput({
       </div>
 
       {cameraError ? (
-        <ErrorAlert
-          title="No se pudo abrir la cámara"
-          message={cameraError}
-        />
+        <ErrorAlert title="No se pudo abrir la cámara" message={cameraError} />
       ) : null}
 
       {cameraOpen ? (
         <div className="glass-card rounded-[32px] p-5 shadow-[0_18px_40px_rgba(0,0,0,0.06)]">
-          <div className="overflow-hidden rounded-[24px] bg-black">
+
+          {/* Visor con overlay guía */}
+          <div className="relative overflow-hidden rounded-[24px] bg-black">
             <video
               ref={videoRef}
               autoPlay
@@ -195,6 +182,40 @@ export function CameraInput({
               muted
               className="h-[320px] w-full object-cover sm:h-[420px]"
             />
+
+            {/* Overlay oscuro en los bordes */}
+            <div className="absolute inset-0 pointer-events-none">
+              {/* Bordes oscuros */}
+              <div className="absolute inset-0 bg-black/40" />
+
+              {/* Recuadro guía central transparente */}
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div
+                  className="relative border-2 border-[var(--egg)] rounded-2xl"
+                  style={{ width: "75%", height: "65%" }}
+                >
+                  {/* Esquinas del recuadro */}
+                  <div className="absolute -top-1 -left-1 w-5 h-5 border-t-4 border-l-4 border-[var(--egg)] rounded-tl-lg" />
+                  <div className="absolute -top-1 -right-1 w-5 h-5 border-t-4 border-r-4 border-[var(--egg)] rounded-tr-lg" />
+                  <div className="absolute -bottom-1 -left-1 w-5 h-5 border-b-4 border-l-4 border-[var(--egg)] rounded-bl-lg" />
+                  <div className="absolute -bottom-1 -right-1 w-5 h-5 border-b-4 border-r-4 border-[var(--egg)] rounded-br-lg" />
+
+                  {/* Texto guía dentro del recuadro */}
+                  <div className="absolute bottom-3 left-0 right-0 flex justify-center">
+                    <span className="bg-black/60 text-white text-xs font-semibold px-3 py-1 rounded-full">
+                      Centra los pollitos aquí
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Instrucción arriba */}
+              <div className="absolute top-3 left-0 right-0 flex justify-center">
+                <span className="bg-black/60 text-white text-xs px-3 py-1 rounded-full">
+                  📏 Distancia ideal: 50-80 cm
+                </span>
+              </div>
+            </div>
           </div>
 
           <div className="mt-4 flex flex-col gap-3 sm:flex-row">

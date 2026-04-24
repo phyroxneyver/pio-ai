@@ -1,43 +1,75 @@
-import anthropic
 import base64
-import gc
-import httpx
 import json
-import numpy as np
+import os
+import time
 from datetime import datetime, timezone
-from io import BytesIO
-from PIL import Image
+from typing import Any
+
+import httpx
 from sqlalchemy.orm import Session
 
 from ..models.imagenes import Imagen, ResultadoIA
 
-client = anthropic.Anthropic()
-TARGET_SIZE = (640, 640)
+
+def _extraer_json(texto: str) -> dict[str, Any]:
+    texto = texto.strip()
+    try:
+        return json.loads(texto)
+    except json.JSONDecodeError:
+        inicio = texto.find("{")
+        fin = texto.rfind("}")
+        if inicio == -1 or fin == -1 or fin <= inicio:
+            raise
+        return json.loads(texto[inicio: fin + 1])
 
 
-def _descargar_imagen(url: str) -> bytes:
-    response = httpx.get(url, timeout=15.0)
-    response.raise_for_status()
-    content = response.content
-    del response
-    return content
+def _normalizar_confianza(valor: str | None) -> str:
+    confianza = (valor or "baja").strip().lower()
+    if confianza not in {"alta", "media", "baja"}:
+        return "baja"
+    return confianza
 
 
-def _preprocesar_imagen(content: bytes) -> tuple[str, str]:
-    img = Image.open(BytesIO(content)).convert("RGB")
-    img_resized = img.resize(TARGET_SIZE, Image.LANCZOS)
-    tensor = np.array(img_resized, dtype=np.float32) / 255.0
-    img_final = Image.fromarray((tensor * 255).astype(np.uint8))
-    buffer = BytesIO()
-    img_final.save(buffer, format="PNG")
-    buffer.seek(0)
-    encoded = base64.standard_b64encode(buffer.read()).decode("utf-8")
-    del img, img_resized, tensor, img_final, buffer
-    gc.collect()
-    return encoded, "image/png"
+def _precision_desde_confianza(confianza: str) -> float:
+    mapa = {"alta": 0.92, "media": 0.72, "baja": 0.45}
+    return mapa.get(confianza, 0.45)
+
+
+def _limpiar_detecciones(raw: Any) -> list[dict[str, Any]]:
+    if not isinstance(raw, list):
+        return []
+    detecciones: list[dict[str, Any]] = []
+    for item in raw[:120]:
+        if not isinstance(item, dict):
+            continue
+        try:
+            x = float(item.get("x"))
+            y = float(item.get("y"))
+        except (TypeError, ValueError):
+            continue
+        if not (0 <= x <= 1 and 0 <= y <= 1):
+            continue
+        confidence = item.get("confidence")
+        try:
+            confidence = float(confidence) if confidence is not None else None
+        except (TypeError, ValueError):
+            confidence = None
+        detecciones.append({
+            "x": x,
+            "y": y,
+            "label": str(item.get("label") or "pollito"),
+            "confidence": confidence,
+        })
+    return detecciones
 
 
 def analizar_imagen_con_ia(db: Session, imagen_id: int) -> ResultadoIA:
+    """Analiza una imagen con Groq Vision y actualiza el ResultadoIA."""
+    from groq import Groq
+
+    client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+    inicio = time.perf_counter()
+
     imagen = db.query(Imagen).filter(Imagen.id == imagen_id).first()
     resultado = db.query(ResultadoIA).filter(ResultadoIA.imagen_id == imagen_id).first()
 
@@ -45,74 +77,71 @@ def analizar_imagen_con_ia(db: Session, imagen_id: int) -> ResultadoIA:
         raise ValueError("Imagen o ResultadoIA no encontrado")
 
     resultado.estado = "procesando"
+    resultado.error_detalle = None
     db.commit()
 
-    content_raw = None
-
     try:
-        content_raw = _descargar_imagen(imagen.ruta)
-        image_data, media_type = _preprocesar_imagen(content_raw)
+        response_img = httpx.get(imagen.ruta, timeout=15.0)
+        response_img.raise_for_status()
+        image_data = base64.standard_b64encode(response_img.content).decode("utf-8")
 
-        del content_raw
-        content_raw = None
-        gc.collect()
+        prompt = (
+            "Cuenta cuantos pollitos hay en esta imagen. "
+            "Ademas, entrega puntos aproximados del centro de cada pollito. "
+            "Usa coordenadas normalizadas entre 0 y 1. "
+            "Responde SOLO JSON valido, sin markdown, con este formato exacto: "
+            "{\"conteo\": 0, \"confianza\": \"alta|media|baja\", \"precision_estimada\": 0.0, "
+            "\"notas\": \"observacion breve\", "
+            "\"detecciones\": [{\"x\": 0.5, \"y\": 0.5, \"label\": \"pollito\", \"confidence\": 0.8}]}"
+        )
 
-        response = client.messages.create(
-            model="claude-opus-4-5",
-            max_tokens=1024,
+        response = client.chat.completions.create(
+            model="meta-llama/llama-4-scout-17b-16e-instruct",
             messages=[{
                 "role": "user",
                 "content": [
                     {
-                        "type": "image",
-                        "source": {
-                            "type": "base64",
-                            "media_type": media_type,
-                            "data": image_data,
-                        },
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:{imagen.content_type};base64,{image_data}"
+                        }
                     },
-                    {
-                        "type": "text",
-                        "text": (
-                            "Analiza esta imagen de pollitos (polluelos de pollo). "
-                            "Cuenta cuántos pollitos hay y estima la posición de cada uno "
-                            "como porcentaje del ancho (x) y alto (y) de la imagen, "
-                            "donde 0.0 es el borde izquierdo/superior y 1.0 es el derecho/inferior. "
-                            "Responde ÚNICAMENTE con este JSON sin texto adicional ni backticks: "
-                            '{"conteo": <número entero>, '
-                            '"confianza": "alta|media|baja", '
-                            '"notas": "<observación breve>", '
-                            '"coordenadas": [{"x": 0.45, "y": 0.30}, ...]}'
-                        )
-                    }
-                ],
-            }]
+                    {"type": "text", "text": prompt}
+                ]
+            }],
+            max_tokens=900,
         )
 
-        texto = response.content[0].text.strip().replace("```json", "").replace("```", "").strip()
-        datos = json.loads(texto)
-        coordenadas = datos.get("coordenadas", [])
+        texto = response.choices[0].message.content.strip()
+        datos = _extraer_json(texto)
 
-        resultado.conteo_pollitos = datos.get("conteo", 0)
-        resultado.confianza = datos.get("confianza", "baja")
-        resultado.coordenadas = json.dumps(coordenadas)
+        conteo = int(datos.get("conteo", 0) or 0)
+        confianza = _normalizar_confianza(datos.get("confianza"))
+
+        precision = datos.get("precision_estimada")
+        try:
+            precision_float = float(precision)
+        except (TypeError, ValueError):
+            precision_float = _precision_desde_confianza(confianza)
+        precision_float = max(0.0, min(1.0, precision_float))
+
+        detecciones = _limpiar_detecciones(datos.get("detecciones"))
+
+        resultado.conteo_pollitos = conteo
+        resultado.confianza = confianza
+        resultado.precision_estimada = precision_float
+        resultado.notas_ia = str(datos.get("notas") or "")[:1000]
+        resultado.detecciones_json = json.dumps(detecciones, ensure_ascii=False)
         resultado.estado = "completado"
         resultado.procesado_at = datetime.now(timezone.utc)
 
-        del image_data, response, datos, coordenadas
-        gc.collect()
-
-    except json.JSONDecodeError as e:
-        resultado.estado = "error"
-        resultado.error_detalle = f"Error parseando respuesta IA: {str(e)}"
     except Exception as e:
         resultado.estado = "error"
         resultado.error_detalle = str(e)
-    finally:
-        if content_raw is not None:
-            del content_raw
-            gc.collect()
 
-    db.commit()
-    db.refresh(resultado)
+    finally:
+        resultado.duracion_ms = int((time.perf_counter() - inicio) * 1000)
+        db.commit()
+        db.refresh(resultado)
+
     return resultado

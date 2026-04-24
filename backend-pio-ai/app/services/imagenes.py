@@ -19,9 +19,8 @@ from sqlalchemy.orm import Session
 from ..models.imagenes import Imagen, ResultadoIA
 
 cloudinary.config(
-    cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
-    api_key=os.getenv("CLOUDINARY_API_KEY"),
-    api_secret=os.getenv("CLOUDINARY_API_SECRET")
+    cloudinary_url=os.getenv("CLOUDINARY_URL"),
+    secure=True,
 )
 
 ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/png", "image/heic", "image/heif"}
@@ -164,20 +163,22 @@ async def upload_imagen(db: Session, file: UploadFile, usuario_id: int) -> Image
         db.commit()
         db.refresh(db_imagen)
 
-        from .ia_service import analizar_imagen_con_ia
-        try:
-            analizar_imagen_con_ia(db=db, imagen_id=db_imagen.id)
-        except Exception as e:
-            print(f"Error en análisis IA: {e}")
-
-        return db_imagen
-
     except Exception as e:
         db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error al registrar en BD: {str(e)}"
         )
+
+    print(f"🤖 [IA] Iniciando análisis para imagen ID: {db_imagen.id}...")
+    try:
+        from .ia_service import analizar_imagen_con_ia
+        analizar_imagen_con_ia(db=db, imagen_id=db_imagen.id)
+        print(f"✅ [IA] Análisis completado para imagen ID: {db_imagen.id}")
+    except Exception as e:
+        print(f"❌ [IA ERROR] Error en análisis: {e}")
+
+    return db_imagen
 
 
 def get_imagenes(db: Session, usuario_id: Optional[int] = None, skip: int = 0, limit: int = 50) -> tuple[List[Imagen], int]:
