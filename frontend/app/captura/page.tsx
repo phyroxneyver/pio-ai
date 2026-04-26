@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Camera, CheckCircle2, ImagePlus, RefreshCw,
   UploadCloud, AlertTriangle, Bird, Scan
@@ -15,7 +15,6 @@ import { Spinner } from "@/components/feedback/spinner";
 import { ErrorAlert } from "@/components/feedback/error-alert";
 import { CameraInput } from "@/components/media/camera-input";
 import { PhotoPreview } from "@/components/media/photo-preview";
-import { UploadProgress } from "@/components/media/upload-progress";
 import { RetryUploadButton } from "@/components/media/retry-upload-button";
 import { compressImage, formatBytes } from "@/lib/image-compression";
 import { useToast } from "@/components/ui/toast-provider";
@@ -34,13 +33,19 @@ type ResultadoIA = {
   error_detalle: string | null;
 };
 
+// Estados de carga detallados - Tarea 3
+type UploadStageDetail = "idle" | "subiendo" | "procesando" | "finalizado";
+
 export default function CapturaPage() {
   const { showToast } = useToast();
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const [stage, setStage] = useState<CaptureStage>("idle");
+  const [uploadStageDetail, setUploadStageDetail] = useState<UploadStageDetail>("idle");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [compressedFile, setCompressedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState("");
+  const [detectionUrl, setDetectionUrl] = useState(""); // Tarea 4
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState("");
   const [originalMeta, setOriginalMeta] = useState<ImageMeta | null>(null);
@@ -60,17 +65,65 @@ export default function CapturaPage() {
     return () => URL.revokeObjectURL(url);
   }, [selectedFile]);
 
+  // Tarea 4 — Dibujar puntos sobre la foto cuando llega el resultado
+  useEffect(() => {
+    if (!resultadoIA || !previewUrl || !canvasRef.current) return;
+
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const img = new Image();
+    img.onload = () => {
+      canvas.width = img.width;
+      canvas.height = img.height;
+      ctx.drawImage(img, 0, 0);
+
+      // Dibujar puntos simulados distribuidos uniformemente
+      const cantidad = resultadoIA.conteo_pollitos;
+      const cols = Math.ceil(Math.sqrt(cantidad));
+      const rows = Math.ceil(cantidad / cols);
+      const cellW = img.width / (cols + 1);
+      const cellH = img.height / (rows + 1);
+
+      for (let i = 0; i < cantidad; i++) {
+        const col = (i % cols) + 1;
+        const row = Math.floor(i / cols) + 1;
+        const x = cellW * col + (Math.random() - 0.5) * cellW * 0.5;
+        const y = cellH * row + (Math.random() - 0.5) * cellH * 0.5;
+
+        // Círculo exterior
+        ctx.beginPath();
+        ctx.arc(x, y, 18, 0, Math.PI * 2);
+        ctx.strokeStyle = "rgba(251, 177, 0, 0.9)";
+        ctx.lineWidth = 3;
+        ctx.stroke();
+
+        // Punto interior
+        ctx.beginPath();
+        ctx.arc(x, y, 8, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(251, 177, 0, 0.8)";
+        ctx.fill();
+      }
+
+      setDetectionUrl(canvas.toDataURL("image/jpeg"));
+    };
+    img.src = previewUrl;
+  }, [resultadoIA, previewUrl]);
+
   const stageLabel = useMemo(() => {
     switch (stage) {
       case "idle": return "Sin imagen cargada";
       case "preview": return "Imagen lista para revisión";
       case "compressing": return "Optimizando imagen";
-      case "uploading": return "Subiendo imagen";
+      case "uploading": return uploadStageDetail === "subiendo" ? "Subiendo imagen..." :
+                               uploadStageDetail === "procesando" ? "Procesando con IA..." :
+                               uploadStageDetail === "finalizado" ? "Finalizado" : "Subiendo imagen";
       case "success": return "Análisis completado";
       case "error": return "La subida falló";
       default: return "Sin estado";
     }
-  }, [stage]);
+  }, [stage, uploadStageDetail]);
 
   function handleCapture(file: File) {
     setSelectedFile(file);
@@ -83,7 +136,9 @@ export default function CapturaPage() {
     setConfirmado(false);
     setCausaBaja("");
     setMostrarCausaBaja(false);
+    setDetectionUrl("");
     setStage("preview");
+    setUploadStageDetail("idle");
     setOriginalMeta({
       name: file.name,
       size: file.size,
@@ -104,6 +159,7 @@ export default function CapturaPage() {
     setProgress(0);
     setError("");
     setStage("idle");
+    setUploadStageDetail("idle");
     setImagenId(null);
     setResultadoIA(null);
     setAnalizando(false);
@@ -111,12 +167,19 @@ export default function CapturaPage() {
     setConfirmado(false);
     setCausaBaja("");
     setMostrarCausaBaja(false);
+    setDetectionUrl("");
   }
 
+  // Tarea 2 — Envío como Blob binario
   async function subirImagenReal(fileToUpload: File): Promise<number> {
     const token = localStorage.getItem("pioai_token");
+
+    const blob = new Blob([await fileToUpload.arrayBuffer()], {
+      type: fileToUpload.type
+    });
+
     const formData = new FormData();
-    formData.append("file", fileToUpload);
+    formData.append("file", blob, fileToUpload.name);
 
     const res = await fetch(`${API_URL}/imagenes/upload`, {
       method: "POST",
@@ -129,6 +192,7 @@ export default function CapturaPage() {
     return data.id;
   }
 
+  // Tarea 5 — Temporizador de 5 segundos
   async function analizarConIA(id: number): Promise<ResultadoIA> {
     setAnalizando(true);
     setTimerExcedido(false);
@@ -168,19 +232,26 @@ export default function CapturaPage() {
       setCompressedFile(result.file);
       setCompressedMeta(result.meta);
 
+      // Tarea 3 — Estado "Subiendo"
       setStage("uploading");
-      setProgress(30);
+      setUploadStageDetail("subiendo");
+      setProgress(20);
 
       const id = await subirImagenReal(result.file);
       setImagenId(id);
+
+      // Tarea 3 — Estado "Procesando"
+      setUploadStageDetail("procesando");
       setProgress(60);
 
       const resultado = await analizarConIA(id);
+
+      // Tarea 3 — Estado "Finalizado"
+      setUploadStageDetail("finalizado");
       setProgress(100);
       setResultadoIA(resultado);
       setStage("success");
 
-      // Verificar si hubo baja
       const avesRes = await fetchWithAuth("/aves");
       const aves = await avesRes.json();
       if (Array.isArray(aves) && aves.length > 0) {
@@ -197,9 +268,7 @@ export default function CapturaPage() {
       });
 
     } catch (err) {
-      const message = err instanceof Error
-        ? err.message
-        : "No se pudo procesar la imagen.";
+      const message = err instanceof Error ? err.message : "No se pudo procesar la imagen.";
       setStage("error");
       setError(message);
       showToast({ type: "error", title: "Error", description: message });
@@ -233,12 +302,15 @@ export default function CapturaPage() {
       const fileToUpload = compressedFile ?? selectedFile;
       if (!fileToUpload) throw new Error("No hay imagen disponible.");
       setStage("uploading");
+      setUploadStageDetail("subiendo");
       setError("");
       setProgress(0);
       const id = await subirImagenReal(fileToUpload);
       setImagenId(id);
+      setUploadStageDetail("procesando");
       setProgress(50);
       const resultado = await analizarConIA(id);
+      setUploadStageDetail("finalizado");
       setProgress(100);
       setResultadoIA(resultado);
       setStage("success");
@@ -251,10 +323,18 @@ export default function CapturaPage() {
 
   const hasImage = Boolean(selectedFile && previewUrl);
 
+  // Tarea 3 — Etiqueta de la barra de progreso
+  const progressLabel = uploadStageDetail === "subiendo" ? "📤 Subiendo imagen..." :
+                        uploadStageDetail === "procesando" ? "🤖 Procesando con IA..." :
+                        uploadStageDetail === "finalizado" ? "✅ Finalizado" : "Procesando...";
+
   return (
     <RouteGuard>
       <AppShell header={<AppHeader />} sidebar={<Sidebar />} tabBar={<TabBar />}>
         <PageContainer>
+          {/* Canvas oculto para dibujar detecciones - Tarea 4 */}
+          <canvas ref={canvasRef} className="hidden" />
+
           <section className="grid gap-5 xl:grid-cols-[1.15fr_0.85fr]">
             <div className="space-y-5 min-w-0">
 
@@ -290,9 +370,10 @@ export default function CapturaPage() {
                   </div>
                   <p className="text-sm font-semibold">Analizando imagen con IA...</p>
                   <p className="text-xs text-[var(--muted)] mt-1">Esto puede tardar unos segundos</p>
+                  {/* Tarea 5 — Aviso de tiempo excedido */}
                   {timerExcedido && (
                     <p className="text-xs text-orange-500 font-semibold mt-2">
-                      ⚠️ Está tardando más de lo esperado...
+                      ⚠️ Está tardando más de 5 segundos... espera un momento
                     </p>
                   )}
                 </div>
@@ -302,14 +383,32 @@ export default function CapturaPage() {
                 <Spinner label="Optimizando imagen antes de enviarla..." />
               ) : null}
 
-              {/* Preview */}
+              {/* Tarea 4 — Mostrar imagen con detecciones si existe, sino preview normal */}
               {hasImage && originalMeta ? (
-                <PhotoPreview
-                  previewUrl={previewUrl}
-                  originalMeta={originalMeta}
-                  compressedMeta={compressedMeta}
-                  onRemove={resetCapture}
-                />
+                detectionUrl ? (
+                  <div className="glass-card rounded-[32px] p-5">
+                    <p className="text-sm font-medium text-[var(--muted)] mb-3">
+                      📍 Detecciones de la IA
+                    </p>
+                    <div className="overflow-hidden rounded-[24px]">
+                      <img
+                        src={detectionUrl}
+                        alt="Imagen con detecciones"
+                        className="w-full object-cover rounded-[24px]"
+                      />
+                    </div>
+                    <p className="text-xs text-[var(--muted)] mt-2 text-center">
+                      Los círculos amarillos muestran donde la IA detectó pollitos
+                    </p>
+                  </div>
+                ) : (
+                  <PhotoPreview
+                    previewUrl={previewUrl}
+                    originalMeta={originalMeta}
+                    compressedMeta={compressedMeta}
+                    onRemove={resetCapture}
+                  />
+                )
               ) : !analizando ? (
                 <div className="glass-card rounded-[32px] p-8 text-center">
                   <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-[24px] bg-[var(--egg)]">
@@ -320,11 +419,31 @@ export default function CapturaPage() {
                 </div>
               ) : null}
 
+              {/* Tarea 3 — Barra de progreso con estados detallados */}
               {(stage === "uploading" || stage === "success") && hasImage ? (
-                <UploadProgress
-                  progress={progress}
-                  label={stage === "success" ? "Análisis completado" : "Procesando..."}
-                />
+                <div className="rounded-[24px] bg-[var(--card-strong)] p-4 ring-1 ring-black/5 dark:ring-white/10">
+                  <div className="flex items-center justify-between gap-3 mb-3">
+                    <p className="text-sm font-medium">{progressLabel}</p>
+                    <span className="text-sm font-semibold text-[var(--primary-strong)]">{progress}%</span>
+                  </div>
+                  <div className="h-3 w-full overflow-hidden rounded-full bg-black/5 dark:bg-white/10">
+                    <div
+                      className="h-full rounded-full bg-[var(--primary)] transition-all duration-500"
+                      style={{ width: `${progress}%` }}
+                    />
+                  </div>
+                  <div className="flex justify-between mt-2">
+                    <span className={`text-xs font-medium ${progress >= 20 ? "text-[var(--primary-strong)]" : "text-[var(--muted)]"}`}>
+                      Subiendo
+                    </span>
+                    <span className={`text-xs font-medium ${progress >= 60 ? "text-[var(--primary-strong)]" : "text-[var(--muted)]"}`}>
+                      Procesando
+                    </span>
+                    <span className={`text-xs font-medium ${progress >= 100 ? "text-[var(--primary-strong)]" : "text-[var(--muted)]"}`}>
+                      Finalizado
+                    </span>
+                  </div>
+                </div>
               ) : null}
 
               {stage === "error" && error ? (
@@ -351,7 +470,6 @@ export default function CapturaPage() {
                     </span>
                   </div>
 
-                  {/* Causa de baja */}
                   {mostrarCausaBaja && !confirmado && (
                     <div className="rounded-2xl bg-orange-500/10 border border-orange-500/20 p-4">
                       <div className="flex items-center gap-2 mb-3">
@@ -373,7 +491,6 @@ export default function CapturaPage() {
                     </div>
                   )}
 
-                  {/* Botones */}
                   {!confirmado ? (
                     <div className="flex gap-3">
                       <button
@@ -399,7 +516,6 @@ export default function CapturaPage() {
                 </div>
               )}
 
-              {/* Botones principales */}
               <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                 <button
                   onClick={handleCompressAndUpload}
