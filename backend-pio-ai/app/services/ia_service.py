@@ -105,7 +105,7 @@ def analizar_imagen_con_ia(db: Session, imagen_id: int) -> ResultadoIA:
 
         image_data = base64.standard_b64encode(response_img.content).decode("utf-8")
 
-        model = genai.GenerativeModel("gemini-1.5-flash")
+        model = genai.GenerativeModel("gemini-2.0-flash")
 
         image_part = {
             "mime_type": imagen.content_type,
