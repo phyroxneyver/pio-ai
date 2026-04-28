@@ -27,6 +27,7 @@ class ResultadoIAResponse(BaseModel):
     duracion_ms: Optional[int] = None
     precision_estimada: Optional[float] = None
     notas_ia: Optional[str] = None
+    detecciones_json: Optional[str] = None
     detecciones: List[DeteccionVisual] = []
 
     class Config:
