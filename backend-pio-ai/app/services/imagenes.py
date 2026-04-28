@@ -189,7 +189,6 @@ def delete_imagen(db: Session, imagen_id: int) -> bool:
     db.commit()
     return True
 
-
 def cleanup_temp_files(max_age_hours: int = 24) -> int:
     # En Cloudinary no hay archivos temporales locales
     return 0
