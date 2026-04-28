@@ -12,7 +12,7 @@ from .schemas.users import UserCreate, UserResponse
 from .services.users import create_user
 from .models.users import User
 from .models.token_blacklist import TokenBlacklist  # Registrar modelo en metadata
-from .models.imagenes import Imagen, ResultadoIA  # Registrar modelos de imágenes
+from .models.imagenes import Imagen, ResultadoIA, FeedbackIA  # Registrar modelos de imágenes y feedback IA
 from .models.alertas import Alerta, NotificacionInterna, HistorialAlerta  # Modelos de alertas
 
 from .api.auth import router as auth_router
