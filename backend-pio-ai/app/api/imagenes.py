@@ -38,6 +38,14 @@ async def subir_imagen(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
+    """
+    Sube una imagen al sistema.
+
+    - Valida tipo de archivo (solo JPG/PNG)
+    - Genera nombre único (UUID)
+    - Detecta duplicados por hash SHA-256
+    - Crea registro de ResultadoIA en estado 'pendiente'
+    """
     imagen = await upload_imagen(
         db=db,
         file=file,

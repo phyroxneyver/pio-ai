@@ -1,4 +1,5 @@
 from typing import List
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
@@ -17,6 +18,7 @@ from .models.alertas import Alerta, NotificacionInterna, HistorialAlerta  # Mode
 from .api.auth import router as auth_router
 from .api.imagenes import router as imagenes_router
 from .api.alertas import router as alertas_router
+from .api.predict import router as predict_router
 
 from .schemas.aves import (
     AveCreate, AveUpdate, AveResponse,
@@ -27,6 +29,17 @@ from .services.aves import (
     create_produccion, get_producciones, update_produccion
 )
 from .models.aves import Ave
+from .core.ml import ml_models
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Ciclo de vida de FastAPI para cargar el modelo de IA (Hot Model)."""
+    print("🚀 Cargando modelo YOLO en memoria...")
+    # Ejemplo: ml_models["yolo"] = YOLO("modelos/yolov8n.pt")
+    ml_models["yolo"] = "YOLO_MODEL_LOADED"
+    yield
+    print("🛑 Liberando modelo y recursos...")
+    ml_models.clear()
 
 app = FastAPI(
     title="Pio AI API",
@@ -34,6 +47,7 @@ app = FastAPI(
     version="0.4.0",
     docs_url="/docs",
     redoc_url="/redoc",
+    lifespan=lifespan,
 )
 
 # ---------------------------------------------------------------------------
@@ -59,6 +73,7 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(imagenes_router)
 app.include_router(alertas_router)
+app.include_router(predict_router)
 
 
 

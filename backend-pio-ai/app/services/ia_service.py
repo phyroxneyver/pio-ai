@@ -1,20 +1,17 @@
 import base64
 import json
+import os
 import time
 from datetime import datetime, timezone
 from typing import Any
 
-import anthropic
 import httpx
 from sqlalchemy.orm import Session
 
 from ..models.imagenes import Imagen, ResultadoIA
 
-client = anthropic.Anthropic()
-
 
 def _extraer_json(texto: str) -> dict[str, Any]:
-    """Extrae JSON aunque la IA responda con texto adicional por error."""
     texto = texto.strip()
 
     try:
@@ -85,7 +82,11 @@ def _limpiar_detecciones(raw: Any) -> list[dict[str, Any]]:
 
 
 def analizar_imagen_con_ia(db: Session, imagen_id: int) -> ResultadoIA:
-    """Analiza una imagen con Claude Vision y actualiza el ResultadoIA."""
+    """Analiza una imagen con Gemini Vision y actualiza el ResultadoIA."""
+    import google.generativeai as genai
+
+    genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
+
     inicio = time.perf_counter()
 
     imagen = db.query(Imagen).filter(Imagen.id == imagen_id).first()
@@ -103,39 +104,27 @@ def analizar_imagen_con_ia(db: Session, imagen_id: int) -> ResultadoIA:
         response_img.raise_for_status()
 
         image_data = base64.standard_b64encode(response_img.content).decode("utf-8")
-        media_type = imagen.content_type
 
-        response = client.messages.create(
-            model="claude-opus-4-5",
-            max_tokens=900,
-            messages=[{
-                "role": "user",
-                "content": [
-                    {
-                        "type": "image",
-                        "source": {
-                            "type": "base64",
-                            "media_type": media_type,
-                            "data": image_data,
-                        },
-                    },
-                    {
-                        "type": "text",
-                        "text": (
-                            "Cuenta cuántos pollitos hay en esta imagen. "
-                            "Además, entrega puntos aproximados del centro de cada pollito para dibujar un comparador visual. "
-                            "Usa coordenadas normalizadas entre 0 y 1, donde x=0 es izquierda, x=1 derecha, y=0 arriba, y=1 abajo. "
-                            "Responde SOLO JSON válido, sin markdown, con este formato exacto: "
-                            "{\"conteo\": 0, \"confianza\": \"alta|media|baja\", \"precision_estimada\": 0.0, "
-                            "\"notas\": \"observación breve\", "
-                            "\"detecciones\": [{\"x\": 0.5, \"y\": 0.5, \"label\": \"pollito\", \"confidence\": 0.8}]}"
-                        ),
-                    },
-                ],
-            }],
+        model = genai.GenerativeModel("gemini-1.5-flash")
+
+        image_part = {
+            "mime_type": imagen.content_type,
+            "data": image_data,
+        }
+
+        prompt = (
+            "Cuenta cuántos pollitos hay en esta imagen. "
+            "Además, entrega puntos aproximados del centro de cada pollito para dibujar un comparador visual. "
+            "Usa coordenadas normalizadas entre 0 y 1, donde x=0 es izquierda, x=1 derecha, y=0 arriba, y=1 abajo. "
+            "Responde SOLO JSON válido, sin markdown, con este formato exacto: "
+            "{\"conteo\": 0, \"confianza\": \"alta|media|baja\", \"precision_estimada\": 0.0, "
+            "\"notas\": \"observación breve\", "
+            "\"detecciones\": [{\"x\": 0.5, \"y\": 0.5, \"label\": \"pollito\", \"confidence\": 0.8}]}"
         )
 
-        texto = response.content[0].text.strip()
+        response = model.generate_content([image_part, prompt])
+
+        texto = response.text.strip()
         datos = _extraer_json(texto)
 
         conteo = int(datos.get("conteo", 0) or 0)
