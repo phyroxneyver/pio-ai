@@ -9,16 +9,30 @@ from typing import List, Optional
 
 import cloudinary
 import cloudinary.uploader
+from dotenv import load_dotenv
 from fastapi import HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 
 from ..models.imagenes import Imagen, ResultadoIA
 
 
+load_dotenv(override=True)
+
+
+def _env_required(name: str) -> str:
+    value = os.getenv(name)
+
+    if not value:
+        raise RuntimeError(f"Falta la variable de entorno: {name}")
+
+    return value.strip()
+
+
 cloudinary.config(
-    cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
-    api_key=os.getenv("CLOUDINARY_API_KEY"),
-    api_secret=os.getenv("CLOUDINARY_API_SECRET"),
+    cloud_name=_env_required("CLOUDINARY_CLOUD_NAME"),
+    api_key=_env_required("CLOUDINARY_API_KEY"),
+    api_secret=_env_required("CLOUDINARY_API_SECRET"),
+    secure=True,
 )
 
 
