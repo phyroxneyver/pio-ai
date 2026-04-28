@@ -47,6 +47,7 @@ async def subir_imagen(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
+    print(f"🚀 [API-POST] Solicitud recibida en /imagenes/upload por usuario: {current_user.email}")
     """
     Sube una imagen al sistema.
 

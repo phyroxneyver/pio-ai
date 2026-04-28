@@ -117,7 +117,7 @@ async def upload_imagen(
         db_imagen = Imagen(
             nombre_original=file.filename or "unknown",
             nombre_almacenado=nombre_almacenado,
-            ruta=cloudinary_url,  # ← URL de Cloudinary
+            ruta=cloudinary_url,
             content_type=file.content_type or "image/jpeg",
             tamaño_bytes=file_size,
             hash_archivo=file_hash,
@@ -136,23 +136,23 @@ async def upload_imagen(
         db.refresh(db_imagen)
         print(f"✅ [UPLOAD] Imagen registrada en BD (ID: {db_imagen.id})")
 
-        # 8. Analizar con IA automáticamente
-        print(f"🤖 [IA] Iniciando análisis para imagen ID: {db_imagen.id}...")
-        from .ia_service import analizar_imagen_con_ia
-        try:
-            analizar_imagen_con_ia(db=db, imagen_id=db_imagen.id)
-            print(f"✅ [IA] Análisis completado para imagen ID: {db_imagen.id}")
-        except Exception as e:
-            print(f"❌ [IA ERROR] Error en análisis: {e}")
-
-        return db_imagen
-
     except Exception as e:
         db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error al registrar en BD: {str(e)}"
         )
+
+    # 8. Analizar con IA automáticamente (fuera del bloque de BD para no afectar la subida)
+    print(f"🤖 [IA] Iniciando análisis para imagen ID: {db_imagen.id}...")
+    try:
+        from .ia_service import analizar_imagen_con_ia
+        analizar_imagen_con_ia(db=db, imagen_id=db_imagen.id)
+        print(f"✅ [IA] Análisis completado para imagen ID: {db_imagen.id}")
+    except Exception as e:
+        print(f"❌ [IA ERROR] Error en análisis: {e}")
+
+    return db_imagen
 
 
 def get_imagenes(
