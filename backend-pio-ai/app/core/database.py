@@ -5,7 +5,7 @@ import os
 from dotenv import load_dotenv
 import pg8000
 
-load_dotenv(override=True)
+load_dotenv()
 
 # --- PARCHE DE EMERGENCIA PARA VERCEL ---
 # Interceptamos la función connect para eliminar parámetros conflictivos y FORZAR SSL
