@@ -32,6 +32,14 @@ function getPageMeta(pathname: string) {
     };
   }
 
+  if (pathname === "/ia-metricas") {
+    return {
+      title: "Métricas de IA",
+      subtitle: "Panel técnico oculto de rendimiento",
+      icon: LayoutDashboard,
+    };
+  }
+
   return {
     title: "Dashboard",
     subtitle: "Resumen general del sistema avícola",
