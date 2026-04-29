@@ -424,7 +424,11 @@ export default function CapturaPage() {
       setUploadStageDetail("finalizado");
       setProgress(100);
       setResultadoIA(resultado);
-      setCorrectedCount(resultado.conteo_pollitos ?? 0);
+      setCorrectedCount(
+        (resultado.conteo_pollitos ?? 0) +
+        (resultado.conteo_gallinas ?? 0) +
+        (resultado.conteo_huevos ?? 0)
+      );
       setStage("success");
 
       await revisarBajaContraUltimoConteo(resultado);
@@ -432,8 +436,8 @@ export default function CapturaPage() {
       saveLastMetrics({
         imagenId: id,
         resultadoId: resultado.id,
-        conteoIA: resultado.conteo_pollitos ?? null,
-        conteoCorregido: resultado.conteo_pollitos ?? null,
+        conteoIA: (resultado.conteo_pollitos ?? 0) + (resultado.conteo_gallinas ?? 0) + (resultado.conteo_huevos ?? 0),
+        conteoCorregido: (resultado.conteo_pollitos ?? 0) + (resultado.conteo_gallinas ?? 0) + (resultado.conteo_huevos ?? 0),
         diferencia: 0,
         confianza: resultado.confianza ?? null,
         precisionEstimada:
@@ -530,7 +534,7 @@ export default function CapturaPage() {
       showToast({
         type: "success",
         title: "Feedback enviado",
-        description: "La foto quedó marcada para futura mejora del modelo.",
+        description: "La roto quedo marcada para futura mejora del modelo.",
       });
 
       return true;
@@ -617,7 +621,7 @@ export default function CapturaPage() {
                 </h2>
 
                 <p className="mt-4 text-sm leading-7 text-[var(--muted)] sm:text-base">
-                  La IA entrega un conteo inicial. Si el trabajador ve un error evidente,
+                  La IA entrega un conteo inicial. Sii el trabajador ve un error evidente,
                   puede corregirlo y enviar la foto como feedback para mejorar el modelo.
                 </p>
 
