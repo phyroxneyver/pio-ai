@@ -424,7 +424,11 @@ export default function CapturaPage() {
       setUploadStageDetail("finalizado");
       setProgress(100);
       setResultadoIA(resultado);
-      setCorrectedCount(resultado.conteo_pollitos ?? 0);
+      setCorrectedCount(
+        (resultado.conteo_pollitos ?? 0) +
+        (resultado.conteo_gallinas ?? 0) +
+        (resultado.conteo_huevos ?? 0)
+      );
       setStage("success");
 
       await revisarBajaContraUltimoConteo(resultado);
@@ -432,8 +436,8 @@ export default function CapturaPage() {
       saveLastMetrics({
         imagenId: id,
         resultadoId: resultado.id,
-        conteoIA: resultado.conteo_pollitos ?? null,
-        conteoCorregido: resultado.conteo_pollitos ?? null,
+        conteoIA: (resultado.conteo_pollitos ?? 0) + (resultado.conteo_gallinas ?? 0) + (resultado.conteo_huevos ?? 0),
+        conteoCorregido: (resultado.conteo_pollitos ?? 0) + (resultado.conteo_gallinas ?? 0) + (resultado.conteo_huevos ?? 0),
         diferencia: 0,
         confianza: resultado.confianza ?? null,
         precisionEstimada:
