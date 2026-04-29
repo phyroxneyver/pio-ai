@@ -45,6 +45,8 @@ type ResultadoIA = {
   id: number;
   imagen_id: number;
   conteo_pollitos: number | null;
+  conteo_gallinas?: number | null;
+  conteo_huevos?: number | null;
   confianza: string | null;
   estado: string;
   procesado_at: string | null;
@@ -157,7 +159,22 @@ export default function CapturaPage() {
     };
   }, []);
 
-  const iaCount = resultadoIA?.conteo_pollitos ?? 0;
+  const iaCount =
+    (resultadoIA?.conteo_pollitos ?? 0) +
+    (resultadoIA?.conteo_gallinas ?? 0) +
+    (resultadoIA?.conteo_huevos ?? 0);
+
+  const iaLabel = (() => {
+    if (!resultadoIA) return "detectados";
+    const p = resultadoIA.conteo_pollitos ?? 0;
+    const g = resultadoIA.conteo_gallinas ?? 0;
+    const h = resultadoIA.conteo_huevos ?? 0;
+    const partes: string[] = [];
+    if (p > 0) partes.push(`${p} pollito${p !== 1 ? "s" : ""}`);
+    if (g > 0) partes.push(`${g} gallina${g !== 1 ? "s" : ""}`);
+    if (h > 0) partes.push(`${h} huevo${h !== 1 ? "s" : ""}`);
+    return partes.length > 0 ? partes.join(", ") : "0 detectados";
+  })();
   const countDifference = correctedCount - iaCount;
   const hasCorrection = Boolean(resultadoIA && countDifference !== 0);
   const hasImage = Boolean(selectedFile && previewUrl);
@@ -430,7 +447,7 @@ export default function CapturaPage() {
       showToast({
         type: "success",
         title: "Análisis completado",
-        description: `Se detectaron ${resultado.conteo_pollitos ?? 0} pollitos.`,
+        description: `Se detectaron ${(resultado.conteo_pollitos ?? 0) + (resultado.conteo_gallinas ?? 0) + (resultado.conteo_huevos ?? 0)} animales.`,
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : "No se pudo procesar la imagen.";
@@ -775,7 +792,7 @@ export default function CapturaPage() {
                     <div className="min-w-0 flex-1">
                       <p className="text-sm text-[var(--muted)]">Resultado de la IA</p>
                       <p className="text-2xl font-black">
-                        {iaCount} pollitos
+                        {iaLabel}
                       </p>
                     </div>
 
@@ -1022,7 +1039,7 @@ export default function CapturaPage() {
                       </p>
 
                       <p className="text-xs text-[var(--primary-strong)]">
-                        pollitos detectados
+                        {iaLabel}
                       </p>
                     </div>
                   ) : null}
