@@ -1,8 +1,5 @@
 """
 Modelo de imágenes para monitoreo avícola.
-
-Almacena metadatos de cada imagen subida, su resultado IA y el feedback
-manual que después sirve para mejorar o entrenar el modelo.
 """
 import json
 from datetime import datetime, timezone
@@ -32,14 +29,12 @@ class Imagen(Base):
         uselist=False,
         cascade="all, delete-orphan",
     )
-
     feedbacks = relationship(
         "FeedbackIA",
         back_populates="imagen",
         cascade="all, delete-orphan",
         order_by="FeedbackIA.created_at.desc()",
     )
-
     usuario = relationship("User", backref="imagenes")
 
 
@@ -55,15 +50,13 @@ class ResultadoIA(Base):
         unique=True,
         nullable=False,
     )
-
     conteo_pollitos = Column(Integer, nullable=True)
     confianza = Column(String(20), nullable=True)
     estado = Column(String(20), nullable=False, default="pendiente")
     error_detalle = Column(Text, nullable=True)
     procesado_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-
-    # Campos técnicos para Persona 4
+    coordenadas = Column(Text, nullable=True)
     duracion_ms = Column(Integer, nullable=True)
     precision_estimada = Column(Float, nullable=True)
     notas_ia = Column(Text, nullable=True)
@@ -73,10 +66,8 @@ class ResultadoIA(Base):
 
     @property
     def detecciones(self) -> list[dict]:
-        """Devuelve las detecciones visuales guardadas como lista Python."""
         if not self.detecciones_json:
             return []
-
         try:
             data = json.loads(self.detecciones_json)
             return data if isinstance(data, list) else []
@@ -85,40 +76,29 @@ class ResultadoIA(Base):
 
 
 class FeedbackIA(Base):
-    """
-    Corrección manual del trabajador.
-
-    Cada registro indica que una foto ya analizada necesita revisión humana,
-    por ejemplo porque la IA falló o porque el conteo fue corregido.
-    """
+    """Corrección manual del trabajador."""
 
     __tablename__ = "feedback_ia"
 
     id = Column(Integer, primary_key=True, index=True)
-
     imagen_id = Column(
         Integer,
         ForeignKey("imagenes.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
-
     resultado_ia_id = Column(
         Integer,
         ForeignKey("resultados_ia.id", ondelete="SET NULL"),
         nullable=True,
     )
-
     usuario_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
-
     conteo_ia = Column(Integer, nullable=True)
     conteo_corregido = Column(Integer, nullable=False)
     diferencia = Column(Integer, nullable=False)
-
     tipo_feedback = Column(String(30), nullable=False, default="correccion")
     motivo = Column(Text, nullable=True)
     imagen_url = Column(String(500), nullable=False)
-
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     imagen = relationship("Imagen", back_populates="feedbacks")
