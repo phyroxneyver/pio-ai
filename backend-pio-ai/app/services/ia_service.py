@@ -86,13 +86,14 @@ def analizar_imagen_con_ia(db: Session, imagen_id: int) -> ResultadoIA:
         image_data = base64.standard_b64encode(response_img.content).decode("utf-8")
 
         prompt = (
-            "Cuenta cuantos pollitos hay en esta imagen. "
-            "Ademas, entrega puntos aproximados del centro de cada pollito. "
-            "Usa coordenadas normalizadas entre 0 y 1. "
+            "Analiza esta imagen de granja avicola. "
+            "Cuenta cuantos pollitos (pollos bebe), gallinas adultas y huevos hay. "
+            "Marca el centro aproximado de cada elemento detectado con coordenadas normalizadas entre 0 y 1. "
             "Responde SOLO JSON valido, sin markdown, con este formato exacto: "
-            "{\"conteo\": 0, \"confianza\": \"alta|media|baja\", \"precision_estimada\": 0.0, "
+            "{\"conteo_pollitos\": 0, \"conteo_gallinas\": 0, \"conteo_huevos\": 0, "
+            "\"confianza\": \"alta|media|baja\", \"precision_estimada\": 0.0, "
             "\"notas\": \"observacion breve\", "
-            "\"detecciones\": [{\"x\": 0.5, \"y\": 0.5, \"label\": \"pollito\", \"confidence\": 0.8}]}"
+            "\"detecciones\": [{\"x\": 0.5, \"y\": 0.5, \"label\": \"pollito|gallina|huevo\", \"confidence\": 0.8}]}"
         )
 
         response = client.chat.completions.create(
@@ -109,13 +110,15 @@ def analizar_imagen_con_ia(db: Session, imagen_id: int) -> ResultadoIA:
                     {"type": "text", "text": prompt}
                 ]
             }],
-            max_tokens=900,
+            max_tokens=1200,
         )
 
         texto = response.choices[0].message.content.strip()
         datos = _extraer_json(texto)
 
-        conteo = int(datos.get("conteo", 0) or 0)
+        conteo_pollitos = int(datos.get("conteo_pollitos", 0) or 0)
+        conteo_gallinas = int(datos.get("conteo_gallinas", 0) or 0)
+        conteo_huevos = int(datos.get("conteo_huevos", 0) or 0)
         confianza = _normalizar_confianza(datos.get("confianza"))
 
         precision = datos.get("precision_estimada")
@@ -127,10 +130,16 @@ def analizar_imagen_con_ia(db: Session, imagen_id: int) -> ResultadoIA:
 
         detecciones = _limpiar_detecciones(datos.get("detecciones"))
 
-        resultado.conteo_pollitos = conteo
+        notas_extra = json.dumps({
+            "conteo_gallinas": conteo_gallinas,
+            "conteo_huevos": conteo_huevos,
+            "notas": str(datos.get("notas") or ""),
+        }, ensure_ascii=False)
+
+        resultado.conteo_pollitos = conteo_pollitos
         resultado.confianza = confianza
         resultado.precision_estimada = precision_float
-        resultado.notas_ia = str(datos.get("notas") or "")[:1000]
+        resultado.notas_ia = notas_extra[:1000]
         resultado.detecciones_json = json.dumps(detecciones, ensure_ascii=False)
         resultado.estado = "completado"
         resultado.procesado_at = datetime.now(timezone.utc)

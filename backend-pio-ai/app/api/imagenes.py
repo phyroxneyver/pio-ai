@@ -1,6 +1,7 @@
 """
 Router de imágenes — Endpoints protegidos para gestión de imágenes avícolas.
 """
+import json
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from sqlalchemy.orm import Session
 
@@ -226,10 +227,19 @@ def analizar_imagen(
         imagen_id=imagen_id,
     )
 
+    notas_parsed: dict = {}
+    if resultado.notas_ia:
+        try:
+            notas_parsed = json.loads(resultado.notas_ia)
+        except (json.JSONDecodeError, ValueError):
+            notas_parsed = {"notas": resultado.notas_ia}
+
     return {
         "id": resultado.id,
         "imagen_id": resultado.imagen_id,
         "conteo_pollitos": resultado.conteo_pollitos,
+        "conteo_gallinas": notas_parsed.get("conteo_gallinas", 0),
+        "conteo_huevos": notas_parsed.get("conteo_huevos", 0),
         "confianza": resultado.confianza,
         "estado": resultado.estado,
         "error_detalle": resultado.error_detalle,
@@ -237,7 +247,7 @@ def analizar_imagen(
         "created_at": resultado.created_at,
         "duracion_ms": resultado.duracion_ms,
         "precision_estimada": resultado.precision_estimada,
-        "notas_ia": resultado.notas_ia,
+        "notas_ia": notas_parsed.get("notas", ""),
         "detecciones": resultado.detecciones,
     }
 
