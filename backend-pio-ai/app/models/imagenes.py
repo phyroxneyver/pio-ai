@@ -66,12 +66,10 @@ class ResultadoIA(Base):
 
     @property
     def detecciones(self) -> list[dict]:
-        # Priorizamos el campo 'coordenadas' solicitado
-        raw_data = self.coordenadas or self.detecciones_json
-        if not raw_data:
+        if not self.detecciones_json:
             return []
         try:
-            data = json.loads(raw_data)
+            data = json.loads(self.detecciones_json)
             return data if isinstance(data, list) else []
         except json.JSONDecodeError:
             return []
