@@ -140,7 +140,8 @@ def analizar_imagen_con_ia(db: Session, imagen_id: int) -> ResultadoIA:
         resultado.confianza = confianza
         resultado.precision_estimada = precision_float
         resultado.notas_ia = notas_extra[:1000]
-        resultado.detecciones_json = json.dumps(detecciones, ensure_ascii=False)
+        resultado.coordenadas = json.dumps(detecciones, ensure_ascii=False)
+        resultado.detecciones_json = resultado.coordenadas
         resultado.estado = "completado"
         resultado.procesado_at = datetime.now(timezone.utc)
 
