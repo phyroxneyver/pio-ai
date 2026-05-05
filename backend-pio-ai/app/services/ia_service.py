@@ -87,7 +87,9 @@ def analizar_imagen_con_ia(db: Session, imagen_id: int) -> ResultadoIA:
 
         prompt = (
             "Analiza esta imagen de granja avicola. "
-            "Cuenta cuantos pollitos (pollos bebe), gallinas adultas y huevos hay. Ignora cualquier otro animal. "
+            "Cuenta SOLO: pollitos (pollos bebe con plumas amarillas), gallinas domesticas adultas (Gallus gallus domesticus) y huevos de gallina. "
+            "NO cuentes patos, gansos, pavos, palomas ni ningun otro animal que no sea gallina o pollito. "
+            "Si no hay gallinas ni pollitos ni huevos en la imagen, retorna conteos en 0. "
             "Marca el centro aproximado de cada elemento detectado con coordenadas normalizadas entre 0 y 1. "
             "Responde SOLO JSON valido, sin markdown, con este formato exacto: "
             "{\"conteo_pollitos\": 0, \"conteo_gallinas\": 0, \"conteo_huevos\": 0, "
