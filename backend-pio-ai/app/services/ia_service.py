@@ -87,13 +87,13 @@ def analizar_imagen_con_ia(db: Session, imagen_id: int) -> ResultadoIA:
 
         prompt = (
             "Analiza esta imagen de granja avicola. "
-            "Cuenta cuantos pollitos (pollos bebe), gallinas adultas, patos y huevos hay. "
+            "Cuenta cuantos pollitos (pollos bebe), gallinas adultas y huevos hay. Ignora cualquier otro animal. "
             "Marca el centro aproximado de cada elemento detectado con coordenadas normalizadas entre 0 y 1. "
             "Responde SOLO JSON valido, sin markdown, con este formato exacto: "
-            "{\"conteo_pollitos\": 0, \"conteo_gallinas\": 0, \"conteo_patos\": 0, \"conteo_huevos\": 0, "
+            "{\"conteo_pollitos\": 0, \"conteo_gallinas\": 0, \"conteo_huevos\": 0, "
             "\"confianza\": \"alta|media|baja\", \"precision_estimada\": 0.0, "
             "\"notas\": \"observacion breve\", "
-            "\"detecciones\": [{\"x\": 0.5, \"y\": 0.5, \"label\": \"pollito|gallina|pato|huevo\", \"confidence\": 0.8}]}"
+            "\"detecciones\": [{\"x\": 0.5, \"y\": 0.5, \"label\": \"pollito|gallina|huevo\", \"confidence\": 0.8}]}"
         )
 
         response = client.chat.completions.create(
@@ -118,7 +118,6 @@ def analizar_imagen_con_ia(db: Session, imagen_id: int) -> ResultadoIA:
 
         conteo_pollitos = int(datos.get("conteo_pollitos", 0) or 0)
         conteo_gallinas = int(datos.get("conteo_gallinas", 0) or 0)
-        conteo_patos = int(datos.get("conteo_patos", 0) or 0)
         conteo_huevos = int(datos.get("conteo_huevos", 0) or 0)
         confianza = _normalizar_confianza(datos.get("confianza"))
 
@@ -133,7 +132,6 @@ def analizar_imagen_con_ia(db: Session, imagen_id: int) -> ResultadoIA:
 
         notas_extra = json.dumps({
             "conteo_gallinas": conteo_gallinas,
-            "conteo_patos": conteo_patos,
             "conteo_huevos": conteo_huevos,
             "notas": str(datos.get("notas") or ""),
         }, ensure_ascii=False)
