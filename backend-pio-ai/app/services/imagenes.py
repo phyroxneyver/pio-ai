@@ -173,8 +173,20 @@ async def upload_imagen(db: Session, file: UploadFile, usuario_id: int) -> Image
     print(f"🤖 [IA] Iniciando análisis para imagen ID: {db_imagen.id}...")
     try:
         from .ia_service import analizar_imagen_con_ia
-        analizar_imagen_con_ia(db=db, imagen_id=db_imagen.id)
-        print(f"✅ [IA] Análisis completado para imagen ID: {db_imagen.id}")
+        res = analizar_imagen_con_ia(db=db, imagen_id=db_imagen.id)
+        # Extraer conteos extras de las notas si es posible
+        try:
+            import json
+            notas = json.loads(res.notas_ia or "{}")
+            c_gallinas = notas.get("conteo_gallinas", 0)
+            c_gallos = notas.get("conteo_gallos", 0)
+            c_huevos = notas.get("conteo_huevos", 0)
+        except Exception:
+            c_gallinas = "?"
+            c_gallos = "?"
+            c_huevos = "?"
+            
+        print(f"✅ [IA] Análisis completado ID {db_imagen.id}: {res.conteo_pollitos} pollitos, {c_gallinas} gallinas, {c_gallos} gallos, {c_huevos} huevos.")
     except Exception as e:
         print(f"❌ [IA ERROR] Error en análisis: {e}")
 
