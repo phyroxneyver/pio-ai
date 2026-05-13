@@ -54,10 +54,14 @@ def _limpiar_detecciones(raw: Any) -> list[dict[str, Any]]:
             confidence = float(confidence) if confidence is not None else None
         except (TypeError, ValueError):
             confidence = None
+        label = str(item.get("label") or "desconocido").lower()
+        if label not in {"pollito", "gallina", "gallo", "huevo"}:
+            label = "desconocido"
+            
         detecciones.append({
             "x": x,
             "y": y,
-            "label": str(item.get("label") or "pollito"),
+            "label": label,
             "confidence": confidence,
         })
     return detecciones
@@ -86,47 +90,26 @@ def analizar_imagen_con_ia(db: Session, imagen_id: int) -> ResultadoIA:
         image_data = base64.standard_b64encode(response_img.content).decode("utf-8")
 
         prompt = (
-              "Eres un sistema experto en detección avícola de granja. "
-    "Analiza ÚNICAMENTE si la imagen es de un entorno de granja o corral con aves de corral. "
-    "Si la imagen NO contiene un entorno avícola (granja, corral, gallinero, nido), retorna todos los conteos en 0. "
-    "\n\n"
-    "DETECTA SOLO estas 3 categorías exactas:\n"
-    "1. POLLITO: cría de gallina de pocos días/semanas de vida. Tiene cuerpo redondeado pequeño, "
-    "pico corto, patas delgadas, plumón suave (puede ser amarillo, marrón o blanco). "
-    "NUNCA confundir con pajaritos silvestres, canarios, loros, ni ningún ave que no sea cría de gallina.\n"
-    "2. GALLINA: ave doméstica adulta (Gallus gallus domesticus). Tiene cresta roja en la cabeza, "
-    "barbilla roja colgante, cuerpo robusto, plumaje denso (marrón, blanco, negro o mixto), "
-    "patas gruesas con espolones. NUNCA confundir con patos, pavos, palomas, faisanes ni aves silvestres.\n"
-    "3. HUEVO: huevo oval de gallina, típicamente blanco o marrón claro, en nido, bandeja o suelo de granja.\n"
-    "\n"
-    "Si ves aves que NO son claramente pollitos o gallinas domésticas, NO las cuentes. "
-    "Solo cuenta lo que puedas identificar con certeza. "
-    "Para cada detección indica su posición con coordenadas normalizadas (0 a 1). "
-    "\nResponde SOLO con JSON válido sin markdown:\n"
-    "{\"conteo_pollitos\": 0, \"conteo_gallinas\": 0, \"conteo_huevos\": 0, "
-    "\"confianza\": \"alta|media|baja\", \"precision_estimada\": 0.0, "
-    "\"notas\": \"descripcion breve de lo observado\", "
-    "\"detecciones\": [{\"x\": 0.5, \"y\": 0.5, \"label\": \"pollito|gallina|huevo\", \"confidence\": 0.8}]}"  "Eres un sistema experto en detección avícola de granja. "
-    "Analiza ÚNICAMENTE si la imagen es de un entorno de granja o corral con aves de corral. "
-    "Si la imagen NO contiene un entorno avícola (granja, corral, gallinero, nido), retorna todos los conteos en 0. "
-    "\n\n"
-    "DETECTA SOLO estas 3 categorías exactas:\n"
-    "1. POLLITO: cría de gallina de pocos días/semanas de vida. Tiene cuerpo redondeado pequeño, "
-    "pico corto, patas delgadas, plumón suave (puede ser amarillo, marrón o blanco). "
-    "NUNCA confundir con pajaritos silvestres, canarios, loros, ni ningún ave que no sea cría de gallina.\n"
-    "2. GALLINA: ave doméstica adulta (Gallus gallus domesticus). Tiene cresta roja en la cabeza, "
-    "barbilla roja colgante, cuerpo robusto, plumaje denso (marrón, blanco, negro o mixto), "
-    "patas gruesas con espolones. NUNCA confundir con patos, pavos, palomas, faisanes ni aves silvestres.\n"
-    "3. HUEVO: huevo oval de gallina, típicamente blanco o marrón claro, en nido, bandeja o suelo de granja.\n"
-    "\n"
-    "Si ves aves que NO son claramente pollitos o gallinas domésticas, NO las cuentes. "
-    "Solo cuenta lo que puedas identificar con certeza. "
-    "Para cada detección indica su posición con coordenadas normalizadas (0 a 1). "
-    "\nResponde SOLO con JSON válido sin markdown:\n"
-    "{\"conteo_pollitos\": 0, \"conteo_gallinas\": 0, \"conteo_huevos\": 0, "
-    "\"confianza\": \"alta|media|baja\", \"precision_estimada\": 0.0, "
-    "\"notas\": \"descripcion breve de lo observado\", "
-    "\"detecciones\": [{\"x\": 0.5, \"y\": 0.5, \"label\": \"pollito|gallina|huevo\", \"confidence\": 0.8}]}"
+            "Eres un sistema experto en detección avícola de granja. "
+            "Analiza ÚNICAMENTE si la imagen es de un entorno de granja o corral con aves de corral. "
+            "Si la imagen NO contiene un entorno avícola (granja, corral, gallinero, nido), retorna todos los conteos en 0. "
+            "\n\n"
+            "DETECTA SOLO estas 4 categorías exactas:\n"
+            "1. POLLITO: cría de gallina de pocos días/semanas de vida. Tiene cuerpo redondeado pequeño, "
+            "pico corto, patas delgadas, plumón suave (puede ser amarillo, marrón o blanco). "
+            "NUNCA confundir con pajaritos silvestres, canarios, loros, ni ningún ave que no sea cría de gallina.\n"
+            "2. GALLINA: ave doméstica adulta hembra. Tiene cresta roja pequeña, cuerpo robusto, plumaje denso. "
+            "NUNCA confundir con patos, pavos ni otras aves.\n"
+            "3. GALLO: ave doméstica adulta macho. Tiene cresta y barbilla rojas mucho más grandes y llamativas que la gallina, "
+            "plumas largas y coloridas en la cola, postura erguida y espolones prominentes.\n"
+            "4. HUEVO: huevo oval de gallina en entorno de granja.\n"
+            "\n"
+            "Si ves aves que NO son claramente de la especie Gallus gallus domesticus, NO las cuentes. "
+            "Responde SOLO con JSON válido sin markdown con este formato:\n"
+            "{\"conteo_pollitos\": 0, \"conteo_gallinas\": 0, \"conteo_gallos\": 0, \"conteo_huevos\": 0, "
+            "\"confianza\": \"alta|media|baja\", \"precision_estimada\": 0.0, "
+            "\"notas\": \"descripcion breve\", "
+            "\"detecciones\": [{\"x\": 0.5, \"y\": 0.5, \"label\": \"pollito|gallina|gallo|huevo\", \"confidence\": 0.8}]}"
         )
 
         response = client.chat.completions.create(
@@ -151,6 +134,7 @@ def analizar_imagen_con_ia(db: Session, imagen_id: int) -> ResultadoIA:
 
         conteo_pollitos = int(datos.get("conteo_pollitos", 0) or 0)
         conteo_gallinas = int(datos.get("conteo_gallinas", 0) or 0)
+        conteo_gallos = int(datos.get("conteo_gallos", 0) or 0)
         conteo_huevos = int(datos.get("conteo_huevos", 0) or 0)
         confianza = _normalizar_confianza(datos.get("confianza"))
 
@@ -165,6 +149,7 @@ def analizar_imagen_con_ia(db: Session, imagen_id: int) -> ResultadoIA:
 
         notas_extra = json.dumps({
             "conteo_gallinas": conteo_gallinas,
+            "conteo_gallos": conteo_gallos,
             "conteo_huevos": conteo_huevos,
             "notas": str(datos.get("notas") or ""),
         }, ensure_ascii=False)
