@@ -14,14 +14,18 @@ export function RouteGuard({
     const [checking, setChecking] = useState(true);
 
     useEffect(() => {
-        const token = getToken();
+        const timer = window.setTimeout(() => {
+            const token = getToken();
 
-        if (!token) {
-            router.replace(`/login?redirect=${encodeURIComponent(pathname || "/")}`);
-            return;
-        }
+            if (!token) {
+                router.replace(`/login?redirect=${encodeURIComponent(pathname || "/")}`);
+                return;
+            }
 
-        setChecking(false);
+            setChecking(false);
+        }, 0);
+
+        return () => window.clearTimeout(timer);
     }, [pathname, router]);
 
     if (checking) {

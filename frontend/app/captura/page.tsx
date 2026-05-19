@@ -3,10 +3,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
-  BarChart3,
   Bird,
   Camera,
   CheckCircle2,
+  CircleDot,
   ImagePlus,
   Minus,
   Plus,
@@ -32,6 +32,18 @@ import { VisualComparator } from "@/components/media/visual-comparator";
 import { compressImage, formatBytes } from "@/lib/image-compression";
 import { useToast } from "@/components/ui/toast-provider";
 import { API_URL, enviarFeedbackIA, fetchWithAuth } from "@/lib/api";
+import {
+  EMPTY_IA_COUNTS,
+  IA_CATEGORIES,
+  buildCountsNote,
+  formatIACounts,
+  getIACountDifference,
+  hasIACountDifference,
+  normalizeIACounts,
+  totalIACounts,
+  type IACategoryKey,
+  type IACounts,
+} from "@/lib/ia-counts";
 import type {
   CaptureStage,
   IAVisualDetection,
@@ -47,6 +59,7 @@ type ResultadoIA = {
   conteo_pollitos: number | null;
   conteo_gallinas?: number | null;
   conteo_huevos?: number | null;
+  conteo_pollos?: number | null;
   confianza: string | null;
   estado: string;
   procesado_at: string | null;
@@ -56,6 +69,8 @@ type ResultadoIA = {
   precision_estimada?: number | null;
   notas_ia?: string | null;
   detecciones?: IAVisualDetection[];
+  conteos?: unknown;
+  conteos_ia?: unknown;
 };
 
 type UploadStageDetail = "idle" | "subiendo" | "procesando" | "finalizado";
@@ -84,38 +99,46 @@ function updateLastMetrics(partial: Partial<LastAIMetrics>) {
   if (typeof window === "undefined") return;
 
   const raw = localStorage.getItem(LAST_AI_METRICS_KEY);
-
   if (!raw) return;
 
   try {
     const current = JSON.parse(raw) as LastAIMetrics;
-    localStorage.setItem(
-      LAST_AI_METRICS_KEY,
-      JSON.stringify({
-        ...current,
-        ...partial,
-      }),
-    );
+    localStorage.setItem(LAST_AI_METRICS_KEY, JSON.stringify({ ...current, ...partial }));
   } catch {
     return;
   }
 }
 
+function normalizeResultadoIA(data: ResultadoIA): ResultadoIA {
+  const counts = normalizeIACounts(data);
+
+  return {
+    ...data,
+    conteo_pollitos: counts.pollitos,
+    conteo_gallinas: counts.gallinas,
+    conteo_huevos: counts.huevos,
+    detecciones: Array.isArray(data.detecciones) ? data.detecciones : [],
+  };
+}
+
+function copyCounts(counts: IACounts): IACounts {
+  return { ...counts };
+}
+
+function countSummaryLines(counts: IACounts) {
+  return IA_CATEGORIES.map((category) => `${category.title}: ${counts[category.key]}`).join(" · ");
+}
+
 export default function CapturaPage() {
   const { showToast } = useToast();
-
   const analysisTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [stage, setStage] = useState<CaptureStage>("idle");
   const [uploadStageDetail, setUploadStageDetail] = useState<UploadStageDetail>("idle");
-
   const [cameraNonce, setCameraNonce] = useState(0);
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [compressedFile, setCompressedFile] = useState<File | null>(null);
-
   const [previewUrl, setPreviewUrl] = useState("");
-
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState("");
 
@@ -124,11 +147,10 @@ export default function CapturaPage() {
 
   const [imagenId, setImagenId] = useState<number | null>(null);
   const [resultadoIA, setResultadoIA] = useState<ResultadoIA | null>(null);
+  const [validatedCounts, setValidatedCounts] = useState<IACounts>({ ...EMPTY_IA_COUNTS });
 
   const [analizando, setAnalizando] = useState(false);
   const [timerExcedido, setTimerExcedido] = useState(false);
-
-  const [correctedCount, setCorrectedCount] = useState(0);
   const [correctionReason, setCorrectionReason] = useState("");
   const [feedbackEnviado, setFeedbackEnviado] = useState(false);
   const [enviandoFeedback, setEnviandoFeedback] = useState(false);
@@ -146,45 +168,34 @@ export default function CapturaPage() {
     const url = URL.createObjectURL(selectedFile);
     setPreviewUrl(url);
 
-    return () => {
-      URL.revokeObjectURL(url);
-    };
+    return () => URL.revokeObjectURL(url);
   }, [selectedFile]);
 
   useEffect(() => {
     return () => {
-      if (analysisTimerRef.current) {
-        clearTimeout(analysisTimerRef.current);
-      }
+      if (analysisTimerRef.current) clearTimeout(analysisTimerRef.current);
     };
   }, []);
 
-  const iaCount =
-    (resultadoIA?.conteo_pollitos ?? 0) +
-    (resultadoIA?.conteo_gallinas ?? 0) +
-    (resultadoIA?.conteo_huevos ?? 0);
+  const iaCounts = useMemo(
+    () => (resultadoIA ? normalizeIACounts(resultadoIA) : { ...EMPTY_IA_COUNTS }),
+    [resultadoIA],
+  );
 
-  const iaLabel = (() => {
-    if (!resultadoIA) return "detectados";
-    const p = resultadoIA.conteo_pollitos ?? 0;
-    const g = resultadoIA.conteo_gallinas ?? 0;
-    const h = resultadoIA.conteo_huevos ?? 0;
-    const partes: string[] = [];
-    if (p > 0) partes.push(`${p} pollito${p !== 1 ? "s" : ""}`);
-    if (g > 0) partes.push(`${g} gallina${g !== 1 ? "s" : ""}`);
-    if (h > 0) partes.push(`${h} huevo${h !== 1 ? "s" : ""}`);
-    return partes.length > 0 ? partes.join(", ") : "0 detectados";
-  })();
-  const countDifference = correctedCount - iaCount;
-  const hasCorrection = Boolean(resultadoIA && countDifference !== 0);
+  const totalIA = totalIACounts(iaCounts);
+  const totalValidated = totalIACounts(validatedCounts);
+  const countDifference = getIACountDifference(validatedCounts, iaCounts);
+  const totalDifference = totalValidated - totalIA;
+  const hasCorrection = Boolean(resultadoIA && hasIACountDifference(validatedCounts, iaCounts));
   const hasImage = Boolean(selectedFile && previewUrl);
+  const iaLabel = formatIACounts(iaCounts);
 
   const stageLabel = useMemo(() => {
     switch (stage) {
       case "idle":
         return "Sin imagen cargada";
       case "preview":
-        return "Imagen lista para revisión";
+        return "Imagen lista para revisar";
       case "compressing":
         return "Optimizando imagen";
       case "uploading":
@@ -203,14 +214,13 @@ export default function CapturaPage() {
 
   const progressLabel = useMemo(() => {
     if (uploadStageDetail === "subiendo") return "📤 Subiendo imagen...";
-    if (uploadStageDetail === "procesando") return "🤖 Procesando con IA...";
+    if (uploadStageDetail === "procesando") return "🤖 Detectando pollos, gallinas y huevos...";
     if (uploadStageDetail === "finalizado") return "✅ Finalizado";
     return "Procesando...";
   }, [uploadStageDetail]);
 
   function handleCapture(file: File) {
     setSelectedFile(file);
-    setCompressedFile(null);
     setCompressedMeta(null);
     setProgress(0);
     setError("");
@@ -221,7 +231,7 @@ export default function CapturaPage() {
     setCorrectionReason("");
     setMostrarCausaBaja(false);
     setFeedbackEnviado(false);
-    setCorrectedCount(0);
+    setValidatedCounts({ ...EMPTY_IA_COUNTS });
     setStage("preview");
     setUploadStageDetail("idle");
 
@@ -245,7 +255,6 @@ export default function CapturaPage() {
     }
 
     setSelectedFile(null);
-    setCompressedFile(null);
     setCompressedMeta(null);
     setOriginalMeta(null);
     setProgress(0);
@@ -254,6 +263,7 @@ export default function CapturaPage() {
     setUploadStageDetail("idle");
     setImagenId(null);
     setResultadoIA(null);
+    setValidatedCounts({ ...EMPTY_IA_COUNTS });
     setAnalizando(false);
     setTimerExcedido(false);
     setConfirmado(false);
@@ -261,14 +271,12 @@ export default function CapturaPage() {
     setCorrectionReason("");
     setMostrarCausaBaja(false);
     setFeedbackEnviado(false);
-    setCorrectedCount(0);
   }
 
   async function clearCameraCache() {
     try {
       if ("caches" in window) {
         const keys = await window.caches.keys();
-
         await Promise.all(
           keys
             .filter((key) => key.includes("pio-ai") || key.includes("camera") || key.includes("captura"))
@@ -295,15 +303,12 @@ export default function CapturaPage() {
 
   async function subirImagenReal(fileToUpload: File): Promise<number> {
     const token = localStorage.getItem("pioai_token");
-
     const formData = new FormData();
     formData.append("file", fileToUpload, fileToUpload.name);
 
     const res = await fetch(`${API_URL}/imagenes/upload`, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+      headers: { Authorization: `Bearer ${token}` },
       body: formData,
     });
 
@@ -313,10 +318,7 @@ export default function CapturaPage() {
     }
 
     const data = await res.json();
-
-    if (!data.id) {
-      throw new Error("El servidor no devolvió el ID de la imagen.");
-    }
+    if (!data.id) throw new Error("El servidor no devolvió el ID de la imagen.");
 
     return Number(data.id);
   }
@@ -326,15 +328,10 @@ export default function CapturaPage() {
     setTimerExcedido(false);
 
     const startedAt = performance.now();
-
-    analysisTimerRef.current = setTimeout(() => {
-      setTimerExcedido(true);
-    }, 5000);
+    analysisTimerRef.current = setTimeout(() => setTimerExcedido(true), 5000);
 
     try {
-      const res = await fetchWithAuth(`/imagenes/${id}/analizar`, {
-        method: "POST",
-      });
+      const res = await fetchWithAuth(`/imagenes/${id}/analizar`, { method: "POST" });
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -343,12 +340,10 @@ export default function CapturaPage() {
 
       const data = (await res.json()) as ResultadoIA;
       const frontendDuration = Math.round(performance.now() - startedAt);
-
-      const resultWithTiming: ResultadoIA = {
+      const resultWithTiming = normalizeResultadoIA({
         ...data,
         duracion_ms: data.duracion_ms ?? frontendDuration,
-        detecciones: Array.isArray(data.detecciones) ? data.detecciones : [],
-      };
+      });
 
       if (resultWithTiming.estado === "error") {
         throw new Error(resultWithTiming.error_detalle || "La IA no pudo analizar esta imagen.");
@@ -360,7 +355,6 @@ export default function CapturaPage() {
         clearTimeout(analysisTimerRef.current);
         analysisTimerRef.current = null;
       }
-
       setAnalizando(false);
     }
   }
@@ -373,15 +367,12 @@ export default function CapturaPage() {
       if (!Array.isArray(aves) || aves.length === 0) return;
 
       const pollitos = aves.filter((ave) => ave.tipo === "pollito");
-
       if (pollitos.length === 0) return;
 
       const ultimo = pollitos[pollitos.length - 1];
-      const conteoActual = resultado.conteo_pollitos ?? 0;
+      const conteoActual = normalizeIACounts(resultado).pollitos;
 
-      if (conteoActual < ultimo.cantidad) {
-        setMostrarCausaBaja(true);
-      }
+      if (conteoActual < ultimo.cantidad) setMostrarCausaBaja(true);
     } catch {
       setMostrarCausaBaja(false);
     }
@@ -398,6 +389,7 @@ export default function CapturaPage() {
       setConfirmado(false);
       setFeedbackEnviado(false);
       setCorrectionReason("");
+      setValidatedCounts({ ...EMPTY_IA_COUNTS });
 
       const result = await compressImage(selectedFile, {
         maxWidth: 1600,
@@ -406,9 +398,7 @@ export default function CapturaPage() {
         mimeType: "image/jpeg",
       });
 
-      setCompressedFile(result.file);
       setCompressedMeta(result.meta);
-
       setStage("uploading");
       setUploadStageDetail("subiendo");
       setProgress(25);
@@ -420,15 +410,13 @@ export default function CapturaPage() {
       setProgress(65);
 
       const resultado = await analizarConIA(id);
+      const counts = normalizeIACounts(resultado);
+      const total = totalIACounts(counts);
 
       setUploadStageDetail("finalizado");
       setProgress(100);
       setResultadoIA(resultado);
-      setCorrectedCount(
-        (resultado.conteo_pollitos ?? 0) +
-        (resultado.conteo_gallinas ?? 0) +
-        (resultado.conteo_huevos ?? 0)
-      );
+      setValidatedCounts(copyCounts(counts));
       setStage("success");
 
       await revisarBajaContraUltimoConteo(resultado);
@@ -436,22 +424,23 @@ export default function CapturaPage() {
       saveLastMetrics({
         imagenId: id,
         resultadoId: resultado.id,
-        conteoIA: (resultado.conteo_pollitos ?? 0) + (resultado.conteo_gallinas ?? 0) + (resultado.conteo_huevos ?? 0),
-        conteoCorregido: (resultado.conteo_pollitos ?? 0) + (resultado.conteo_gallinas ?? 0) + (resultado.conteo_huevos ?? 0),
+        conteoIA: total,
+        conteoCorregido: total,
         diferencia: 0,
         confianza: resultado.confianza ?? null,
-        precisionEstimada:
-          resultado.precision_estimada ?? confianzaComoPrecision(resultado.confianza),
+        precisionEstimada: resultado.precision_estimada ?? confianzaComoPrecision(resultado.confianza),
         duracionMs: resultado.duracion_ms ?? null,
         estado: resultado.estado,
         feedbackEnviado: false,
         fecha: new Date().toISOString(),
+        conteosIA: counts,
+        conteosCorregidos: counts,
       });
 
       showToast({
         type: "success",
         title: "Análisis completado",
-        description: `Se detectaron ${(resultado.conteo_pollitos ?? 0) + (resultado.conteo_gallinas ?? 0) + (resultado.conteo_huevos ?? 0)} animales.`,
+        description: `${total} elemento(s) detectados: ${formatIACounts(counts)}.`,
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : "No se pudo procesar la imagen.";
@@ -473,20 +462,15 @@ export default function CapturaPage() {
         fecha: new Date().toISOString(),
       });
 
-      showToast({
-        type: "error",
-        title: "Error",
-        description: message,
-      });
+      showToast({ type: "error", title: "Error", description: message });
     }
   }
 
-  function decreaseCorrectedCount() {
-    setCorrectedCount((current) => Math.max(0, current - 1));
-  }
-
-  function increaseCorrectedCount() {
-    setCorrectedCount((current) => current + 1);
+  function updateValidatedCount(key: IACategoryKey, amount: number) {
+    setValidatedCounts((current) => ({
+      ...current,
+      [key]: Math.max(0, current[key] + amount),
+    }));
   }
 
   async function handleEnviarFeedback(tipo: "correccion" | "fallida") {
@@ -496,7 +480,6 @@ export default function CapturaPage() {
         title: "Sin imagen",
         description: "Primero debes subir una imagen.",
       });
-
       return false;
     }
 
@@ -506,18 +489,25 @@ export default function CapturaPage() {
         title: "Agrega una observación",
         description: "Explica brevemente por qué esta foto falló.",
       });
-
       return false;
     }
 
     try {
       setEnviandoFeedback(true);
 
+      const motivo = [
+        correctionReason.trim(),
+        buildCountsNote("IA", iaCounts),
+        buildCountsNote("Validado", validatedCounts),
+      ]
+        .filter(Boolean)
+        .join(" | ");
+
       await enviarFeedbackIA(imagenId, {
-        conteo_corregido: correctedCount,
+        conteo_corregido: totalValidated,
         tipo_feedback: tipo,
         motivo:
-          correctionReason.trim() ||
+          motivo ||
           (tipo === "fallida"
             ? "Foto marcada como fallida por el trabajador."
             : "Conteo corregido manualmente por el trabajador."),
@@ -526,15 +516,16 @@ export default function CapturaPage() {
       setFeedbackEnviado(true);
 
       updateLastMetrics({
-        conteoCorregido: correctedCount,
-        diferencia: resultadoIA ? correctedCount - (resultadoIA.conteo_pollitos ?? 0) : null,
+        conteoCorregido: totalValidated,
+        diferencia: totalDifference,
         feedbackEnviado: true,
+        conteosCorregidos: validatedCounts,
       });
 
       showToast({
         type: "success",
         title: "Feedback enviado",
-        description: "La roto quedo marcada para futura mejora del modelo.",
+        description: "La foto quedó marcada para mejora futura del modelo.",
       });
 
       return true;
@@ -559,47 +550,81 @@ export default function CapturaPage() {
     try {
       if (hasCorrection && !feedbackEnviado) {
         const feedbackOk = await handleEnviarFeedback("correccion");
-
         if (!feedbackOk) return;
       }
 
-      await fetchWithAuth("/aves", {
-        method: "POST",
-        body: JSON.stringify({
-          tipo: "pollito",
-          cantidad: correctedCount,
-          notas:
-            [
-              `Conteo validado Persona 4.`,
-              `IA=${resultadoIA.conteo_pollitos ?? 0}.`,
-              `Corregido=${correctedCount}.`,
-              `Confianza=${resultadoIA.confianza ?? "sin dato"}.`,
-              resultadoIA.duracion_ms ? `Tiempo IA=${resultadoIA.duracion_ms}ms.` : "",
-              correctionReason ? `Corrección: ${correctionReason}.` : "",
-              causaBaja ? `Causa de baja: ${causaBaja}.` : "",
-            ]
-              .filter(Boolean)
-              .join(" "),
-        }),
-      });
+      const notas = [
+        "Conteo validado desde Cámara IA.",
+        buildCountsNote("IA", iaCounts),
+        buildCountsNote("Validado", validatedCounts),
+        `Confianza=${resultadoIA.confianza ?? "sin dato"}.`,
+        resultadoIA.duracion_ms ? `Tiempo IA=${resultadoIA.duracion_ms}ms.` : "",
+        correctionReason ? `Corrección: ${correctionReason}.` : "",
+        causaBaja ? `Causa de baja: ${causaBaja}.` : "",
+      ]
+        .filter(Boolean)
+        .join(" ");
+
+      let gallinaAveId: number | null = null;
+
+      if (validatedCounts.pollitos > 0) {
+        await fetchWithAuth("/aves", {
+          method: "POST",
+          body: JSON.stringify({
+            tipo: "pollito",
+            cantidad: validatedCounts.pollitos,
+            notas,
+          }),
+        });
+      }
+
+      if (validatedCounts.gallinas > 0) {
+        const res = await fetchWithAuth("/aves", {
+          method: "POST",
+          body: JSON.stringify({
+            tipo: "gallina",
+            cantidad: validatedCounts.gallinas,
+            notas,
+          }),
+        });
+
+        const created = await res.json().catch(() => null);
+        gallinaAveId = created?.id ? Number(created.id) : null;
+      }
+
+      if (validatedCounts.huevos > 0 && gallinaAveId) {
+        await fetchWithAuth("/produccion-huevos", {
+          method: "POST",
+          body: JSON.stringify({
+            ave_id: gallinaAveId,
+            cantidad_huevos: validatedCounts.huevos,
+            notas,
+          }),
+        });
+      }
 
       setConfirmado(true);
 
       updateLastMetrics({
-        conteoCorregido: correctedCount,
-        diferencia: correctedCount - (resultadoIA.conteo_pollitos ?? 0),
+        conteoCorregido: totalValidated,
+        diferencia: totalDifference,
+        conteosCorregidos: validatedCounts,
       });
+
+      const eggsWithoutLot = validatedCounts.huevos > 0 && !gallinaAveId;
 
       showToast({
         type: "success",
         title: "Conteo guardado",
-        description: "El conteo validado se guardó correctamente.",
+        description: eggsWithoutLot
+          ? "Se validó el conteo. Los huevos se mostraron en el resultado, pero no se registraron en producción porque no hay gallina/lote asociado."
+          : "El conteo validado se guardó correctamente.",
       });
     } catch {
       showToast({
         type: "error",
         title: "Error",
-        description: "No se pudo guardar el conteo.",
+        description: "No se pudo guardar el conteo validado.",
       });
     }
   }
@@ -613,16 +638,16 @@ export default function CapturaPage() {
               <div className="glass-card rounded-[32px] p-5 shadow-[0_20px_50px_rgba(0,0,0,0.07)] sm:p-8">
                 <span className="inline-flex items-center gap-2 rounded-full bg-[var(--egg)] px-3 py-1 text-xs font-semibold text-[var(--primary-strong)]">
                   <Camera className="h-3.5 w-3.5" />
-                  Cámara IA
+                  Cámara IA multicategoría
                 </span>
 
                 <h2 className="mt-4 text-3xl font-semibold leading-tight tracking-tight sm:text-4xl">
-                  Toma una foto y valida el conteo de pollitos
+                  Escanea una foto y valida pollos, gallinas y huevos
                 </h2>
 
                 <p className="mt-4 text-sm leading-7 text-[var(--muted)] sm:text-base">
-                  La IA entrega un conteo inicial. Sii el trabajador ve un error evidente,
-                  puede corregirlo y enviar la foto como feedback para mejorar el modelo.
+                  La pantalla ahora separa los resultados por categoría. Si la imagen tiene una mezcla de huevos,
+                  pollos y gallinas, podrás ver y ajustar cada conteo sin tocar el entrenamiento del modelo.
                 </p>
 
                 <div className="mt-6">
@@ -637,9 +662,8 @@ export default function CapturaPage() {
               {analizando ? (
                 <div className="glass-card rounded-[32px] p-8 text-center">
                   <div className="relative mx-auto mb-4 h-20 w-20">
-                    <div className="absolute inset-0 rounded-full border-4 border-[var(--egg)] opacity-30 animate-ping" />
-                    <div className="absolute inset-2 rounded-full border-4 border-[var(--egg)] opacity-50 animate-ping" />
-
+                    <div className="absolute inset-0 animate-ping rounded-full border-4 border-[var(--egg)] opacity-30" />
+                    <div className="absolute inset-2 animate-ping rounded-full border-4 border-[var(--egg)] opacity-50" />
                     <div className="flex h-20 w-20 items-center justify-center">
                       <Scan className="h-8 w-8 animate-pulse text-[var(--primary-strong)]" />
                     </div>
@@ -647,7 +671,7 @@ export default function CapturaPage() {
 
                   <p className="text-sm font-semibold">Analizando imagen con IA...</p>
                   <p className="mt-1 text-xs text-[var(--muted)]">
-                    Esto puede tardar unos segundos.
+                    Buscando pollos/pollitos, gallinas y huevos.
                   </p>
 
                   {timerExcedido ? (
@@ -658,9 +682,7 @@ export default function CapturaPage() {
                 </div>
               ) : null}
 
-              {stage === "compressing" ? (
-                <Spinner label="Optimizando imagen antes de enviarla..." />
-              ) : null}
+              {stage === "compressing" ? <Spinner label="Optimizando imagen antes de enviarla..." /> : null}
 
               {hasImage && originalMeta && !resultadoIA ? (
                 <PhotoPreview
@@ -675,8 +697,8 @@ export default function CapturaPage() {
                 <VisualComparator
                   imageUrl={previewUrl}
                   detections={resultadoIA.detecciones || []}
-                  iaCount={iaCount}
-                  correctedCount={correctedCount}
+                  iaCounts={iaCounts}
+                  correctedCounts={validatedCounts}
                 />
               ) : null}
 
@@ -711,32 +733,6 @@ export default function CapturaPage() {
                       style={{ width: `${progress}%` }}
                     />
                   </div>
-
-                  <div className="mt-2 flex justify-between">
-                    <span
-                      className={`text-xs font-medium ${
-                        progress >= 25 ? "text-[var(--primary-strong)]" : "text-[var(--muted)]"
-                      }`}
-                    >
-                      Subiendo
-                    </span>
-
-                    <span
-                      className={`text-xs font-medium ${
-                        progress >= 65 ? "text-[var(--primary-strong)]" : "text-[var(--muted)]"
-                      }`}
-                    >
-                      Procesando
-                    </span>
-
-                    <span
-                      className={`text-xs font-medium ${
-                        progress >= 100 ? "text-[var(--primary-strong)]" : "text-[var(--muted)]"
-                      }`}
-                    >
-                      Finalizado
-                    </span>
-                  </div>
                 </div>
               ) : null}
 
@@ -746,19 +742,16 @@ export default function CapturaPage() {
 
                   {imagenId ? (
                     <div className="glass-card rounded-[32px] p-5">
-                      <h3 className="text-lg font-semibold">
-                        Marcar esta foto como fallida
-                      </h3>
-
+                      <h3 className="text-lg font-semibold">Marcar esta foto como fallida</h3>
                       <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
-                        Si la foto llegó al servidor pero la IA falló, puedes enviarla como
-                        ejemplo fallido para entrenamiento futuro.
+                        Si la foto llegó al servidor pero la IA falló, puedes enviarla como ejemplo fallido
+                        para revisión futura.
                       </p>
 
                       <textarea
                         value={correctionReason}
                         onChange={(event) => setCorrectionReason(event.target.value)}
-                        placeholder="Ej: imagen borrosa, pollitos amontonados, poca luz..."
+                        placeholder="Ej: imagen borrosa, animales amontonados, poca luz..."
                         rows={3}
                         className="mt-4 w-full resize-none rounded-2xl border border-black/10 bg-[var(--card-strong)] px-4 py-3 text-sm outline-none dark:border-white/10"
                       />
@@ -795,9 +788,7 @@ export default function CapturaPage() {
 
                     <div className="min-w-0 flex-1">
                       <p className="text-sm text-[var(--muted)]">Resultado de la IA</p>
-                      <p className="text-2xl font-black">
-                        {iaLabel}
-                      </p>
+                      <p className="text-2xl font-black">{iaLabel}</p>
                     </div>
 
                     <span
@@ -813,82 +804,96 @@ export default function CapturaPage() {
                     </span>
                   </div>
 
-                  <div className="rounded-[28px] bg-[var(--card-strong)] p-4 ring-1 ring-black/5 dark:ring-white/10">
-                    <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                      <div>
-                        <p className="text-sm font-semibold">
-                          Corrección manual del trabajador
-                        </p>
+                  <div className="grid gap-3 md:grid-cols-3">
+                    {IA_CATEGORIES.map((category) => {
+                      const diff = countDifference[category.key];
 
-                        <p className="mt-1 text-xs leading-5 text-[var(--muted)]">
-                          Si la IA se equivocó, suma o resta pollitos antes de guardar.
-                        </p>
-                      </div>
-
-                      <div className="flex items-center gap-3">
-                        <button
-                          onClick={decreaseCorrectedCount}
-                          className="secondary-button flex h-11 w-11 items-center justify-center rounded-2xl"
+                      return (
+                        <div
+                          key={category.key}
+                          className="rounded-[28px] bg-[var(--card-strong)] p-4 ring-1 ring-black/5 dark:ring-white/10"
                         >
-                          <Minus className="h-4 w-4" />
-                        </button>
+                          <p className="text-xs uppercase tracking-widest text-[var(--muted)]">
+                            {category.title}
+                          </p>
+                          <p className="mt-1 text-3xl font-black">
+                            {iaCounts[category.key]}
+                          </p>
+                          <p className="mt-1 text-xs leading-5 text-[var(--muted)]">
+                            {category.description}
+                          </p>
 
-                        <div className="min-w-[120px] rounded-2xl bg-[var(--background)] px-4 py-3 text-center ring-1 ring-black/5 dark:ring-white/10">
-                          <p className="text-xs text-[var(--muted)]">
-                            Conteo validado
-                          </p>
-                          <p className="text-3xl font-black">
-                            {correctedCount}
-                          </p>
+                          <div className="mt-4 flex items-center justify-between gap-2 rounded-2xl bg-[var(--background)] p-2 ring-1 ring-black/5 dark:ring-white/10">
+                            <button
+                              onClick={() => updateValidatedCount(category.key, -1)}
+                              className="secondary-button flex h-10 w-10 items-center justify-center rounded-xl"
+                              aria-label={`Restar ${category.title}`}
+                            >
+                              <Minus className="h-4 w-4" />
+                            </button>
+
+                            <div className="text-center">
+                              <p className="text-[11px] text-[var(--muted)]">Validado</p>
+                              <p className="text-2xl font-black">
+                                {validatedCounts[category.key]}
+                              </p>
+                            </div>
+
+                            <button
+                              onClick={() => updateValidatedCount(category.key, 1)}
+                              className="secondary-button flex h-10 w-10 items-center justify-center rounded-xl"
+                              aria-label={`Sumar ${category.title}`}
+                            >
+                              <Plus className="h-4 w-4" />
+                            </button>
+                          </div>
+
+                          {diff !== 0 ? (
+                            <p className="mt-3 rounded-xl bg-orange-500/10 px-3 py-2 text-xs font-semibold text-orange-500">
+                              Corrección {diff > 0 ? "+" : ""}{diff}
+                            </p>
+                          ) : null}
                         </div>
-
-                        <button
-                          onClick={increaseCorrectedCount}
-                          className="secondary-button flex h-11 w-11 items-center justify-center rounded-2xl"
-                        >
-                          <Plus className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </div>
-
-                    {hasCorrection ? (
-                      <div className="mt-4 rounded-2xl bg-orange-500/10 p-4">
-                        <p className="text-sm font-semibold text-orange-500">
-                          Se detectó una corrección manual de{" "}
-                          {countDifference > 0 ? `+${countDifference}` : countDifference}.
-                        </p>
-
-                        <textarea
-                          value={correctionReason}
-                          onChange={(event) => setCorrectionReason(event.target.value)}
-                          placeholder="Explica la corrección. Ej: la IA no contó los pollitos de la esquina izquierda..."
-                          rows={3}
-                          className="mt-3 w-full resize-none rounded-2xl border border-black/10 bg-[var(--card-strong)] px-4 py-3 text-sm outline-none dark:border-white/10"
-                        />
-
-                        <button
-                          onClick={() => handleEnviarFeedback("correccion")}
-                          disabled={feedbackEnviado || enviandoFeedback}
-                          className="mt-3 inline-flex min-h-[44px] items-center justify-center gap-2 rounded-2xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white disabled:opacity-60"
-                        >
-                          <Send className="h-4 w-4" />
-                          {feedbackEnviado ? "Feedback enviado" : "Enviar corrección para entrenamiento"}
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="mt-4 flex items-center gap-2 rounded-2xl bg-green-500/10 px-4 py-3 text-sm font-semibold text-green-500">
-                        <ShieldCheck className="h-4 w-4" />
-                        El trabajador no corrigió el conteo de la IA.
-                      </div>
-                    )}
+                      );
+                    })}
                   </div>
+
+                  {hasCorrection ? (
+                    <div className="rounded-2xl bg-orange-500/10 p-4">
+                      <p className="text-sm font-semibold text-orange-500">
+                        Se detectó una corrección manual total de {totalDifference > 0 ? `+${totalDifference}` : totalDifference}.
+                      </p>
+
+                      <textarea
+                        value={correctionReason}
+                        onChange={(event) => setCorrectionReason(event.target.value)}
+                        placeholder="Explica la corrección. Ej: había huevos ocultos, una gallina quedó fuera del cuadro, etc."
+                        rows={3}
+                        className="mt-3 w-full resize-none rounded-2xl border border-black/10 bg-[var(--card-strong)] px-4 py-3 text-sm outline-none dark:border-white/10"
+                      />
+
+                      <button
+                        onClick={() => handleEnviarFeedback("correccion")}
+                        disabled={feedbackEnviado || enviandoFeedback}
+                        className="mt-3 inline-flex min-h-[44px] items-center justify-center gap-2 rounded-2xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white disabled:opacity-60"
+                      >
+                        <Send className="h-4 w-4" />
+                        {feedbackEnviado ? "Feedback enviado" : "Enviar corrección"}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 rounded-2xl bg-green-500/10 px-4 py-3 text-sm font-semibold text-green-500">
+                      <ShieldCheck className="h-4 w-4" />
+                      El trabajador no corrigió el conteo de la IA.
+                    </div>
+                  )}
 
                   {mostrarCausaBaja && !confirmado ? (
                     <div className="rounded-2xl border border-orange-500/20 bg-orange-500/10 p-4">
                       <div className="mb-3 flex items-center gap-2">
                         <AlertTriangle className="h-4 w-4 text-orange-500" />
                         <p className="text-sm font-semibold text-orange-500">
-                          El conteo bajó respecto al registro anterior
+                          El conteo de pollos/pollitos bajó respecto al registro anterior
                         </p>
                       </div>
 
@@ -921,7 +926,7 @@ export default function CapturaPage() {
                         className="secondary-button flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-2xl py-3 text-sm font-medium"
                       >
                         <RotateCcw className="h-4 w-4" />
-                        Volver a intentar
+                        Nueva captura
                       </button>
                     </div>
                   ) : (
@@ -935,131 +940,102 @@ export default function CapturaPage() {
                 </div>
               ) : null}
 
-              <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-                <button
-                  onClick={handleCompressAndUpload}
-                  disabled={!selectedFile || stage === "compressing" || stage === "uploading" || analizando}
-                  className="primary-button inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold transition duration-300 hover:-translate-y-0.5 disabled:opacity-60 sm:w-auto"
-                >
-                  <UploadCloud className="h-4 w-4" />
-                  Analizar con IA
-                </button>
+              {hasImage && stage !== "success" ? (
+                <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+                  <button
+                    onClick={handleCompressAndUpload}
+                    disabled={!selectedFile || stage === "compressing" || stage === "uploading" || analizando}
+                    className="primary-button inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold transition duration-300 hover:-translate-y-0.5 disabled:opacity-60 sm:w-auto"
+                  >
+                    <UploadCloud className="h-4 w-4" />
+                    Analizar con IA
+                  </button>
 
-                <button
-                  onClick={handleSmartRetry}
-                  className="secondary-button inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-medium transition duration-300 hover:-translate-y-0.5 sm:w-auto"
-                >
-                  <RefreshCw className="h-4 w-4" />
-                  Volver a intentar
-                </button>
-              </div>
+                  <button
+                    onClick={handleSmartRetry}
+                    className="secondary-button inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-medium transition duration-300 hover:-translate-y-0.5 sm:w-auto"
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                    Limpiar captura
+                  </button>
+                </div>
+              ) : null}
             </div>
 
             <div className="min-w-0 space-y-5">
               <div className="glass-card rounded-[32px] p-6">
-                <p className="text-sm font-medium text-[var(--muted)]">
-                  Estado actual
-                </p>
-
-                <h3 className="mt-1 text-2xl font-semibold tracking-tight">
-                  {stageLabel}
-                </h3>
+                <p className="text-sm font-medium text-[var(--muted)]">Estado actual</p>
+                <h3 className="mt-1 text-2xl font-semibold tracking-tight">{stageLabel}</h3>
 
                 <div className="mt-6 space-y-3">
                   <div className="rounded-[24px] bg-[var(--card-strong)] p-4 ring-1 ring-black/5 dark:ring-white/10">
-                    <p className="text-sm text-[var(--muted)]">Flujo Persona 4</p>
-
+                    <p className="text-sm text-[var(--muted)]">Flujo optimizado</p>
                     <p className="mt-2 text-sm font-semibold">
-                      Captura → IA → corrección manual → feedback → guardado
+                      Captura → IA multicategoría → validación por tipo → guardado
                     </p>
+                  </div>
+
+                  <div className="rounded-[24px] bg-[var(--card-strong)] p-4 ring-1 ring-black/5 dark:ring-white/10">
+                    <p className="text-sm text-[var(--muted)]">Categorías activas</p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {IA_CATEGORIES.map((category) => (
+                        <span
+                          key={category.key}
+                          className="inline-flex items-center gap-2 rounded-full bg-[var(--egg)] px-3 py-1 text-xs font-semibold text-[var(--primary-strong)]"
+                        >
+                          <CircleDot className="h-3.5 w-3.5" />
+                          {category.title}
+                        </span>
+                      ))}
+                    </div>
                   </div>
 
                   {resultadoIA ? (
                     <div className="rounded-[24px] bg-[var(--card-strong)] p-4 ring-1 ring-black/5 dark:ring-white/10">
                       <p className="text-sm text-[var(--muted)]">Tiempo de IA</p>
-
                       <p className="mt-2 text-2xl font-black">
                         {resultadoIA.duracion_ms ? `${resultadoIA.duracion_ms} ms` : "Sin dato"}
                       </p>
-
-                      <p className="mt-1 text-xs text-[var(--muted)]">
-                        Visible también en /ia-metricas
-                      </p>
                     </div>
                   ) : null}
-
-                  <a
-                    href="/ia-metricas"
-                    className="secondary-button inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold"
-                  >
-                    <BarChart3 className="h-4 w-4" />
-                    Abrir panel técnico oculto
-                  </a>
                 </div>
               </div>
 
               <div className="glass-card rounded-[32px] p-6">
-                <p className="text-sm font-medium text-[var(--muted)]">
-                  Resumen del archivo
-                </p>
-
-                <h3 className="mt-1 text-2xl font-semibold tracking-tight">
-                  Detalles
-                </h3>
+                <p className="text-sm font-medium text-[var(--muted)]">Resumen rápido</p>
+                <h3 className="mt-1 text-2xl font-semibold tracking-tight">Detalles</h3>
 
                 <div className="mt-6 grid gap-3">
                   <div className="rounded-[24px] bg-[var(--card-strong)] p-4 ring-1 ring-black/5 dark:ring-white/10">
-                    <p className="text-sm text-[var(--muted)]">Original</p>
-
+                    <p className="text-sm text-[var(--muted)]">Archivo original</p>
                     <p className="mt-2 text-sm font-semibold">
                       {originalMeta ? formatBytes(originalMeta.size) : "Sin datos"}
                     </p>
                   </div>
 
                   <div className="rounded-[24px] bg-[var(--card-strong)] p-4 ring-1 ring-black/5 dark:ring-white/10">
-                    <p className="text-sm text-[var(--muted)]">Optimizado</p>
-
+                    <p className="text-sm text-[var(--muted)]">Archivo optimizado</p>
                     <p className="mt-2 text-sm font-semibold">
                       {compressedMeta ? formatBytes(compressedMeta.size) : "Aún no comprimido"}
                     </p>
                   </div>
 
-                  <div className="rounded-[24px] bg-[var(--card-strong)] p-4 ring-1 ring-black/5 dark:ring-white/10">
-                    <p className="text-sm text-[var(--muted)]">Formato final</p>
-
-                    <p className="mt-2 text-sm font-semibold">
-                      {compressedMeta?.format || "Sin definir"}
-                    </p>
-                  </div>
-
                   {resultadoIA ? (
-                    <div className="rounded-[24px] bg-[var(--egg)] p-4 ring-1 ring-black/5 dark:ring-white/10">
-                      <p className="text-sm font-medium text-[var(--primary-strong)]">
-                        Conteo IA
-                      </p>
+                    <>
+                      <div className="rounded-[24px] bg-[var(--egg)] p-4 ring-1 ring-black/5 dark:ring-white/10">
+                        <p className="text-sm font-medium text-[var(--primary-strong)]">Conteo IA total</p>
+                        <p className="mt-2 text-4xl font-black text-[var(--primary-strong)]">{totalIA}</p>
+                        <p className="mt-2 text-xs leading-5 text-[var(--muted)]">{countSummaryLines(iaCounts)}</p>
+                      </div>
 
-                      <p className="mt-2 text-3xl font-black text-[var(--primary-strong)]">
-                        {iaCount}
-                      </p>
-
-                      <p className="text-xs text-[var(--primary-strong)]">
-                        {iaLabel}
-                      </p>
-                    </div>
-                  ) : null}
-
-                  {resultadoIA ? (
-                    <div className="rounded-[24px] bg-[var(--card-strong)] p-4 ring-1 ring-black/5 dark:ring-white/10">
-                      <p className="text-sm text-[var(--muted)]">Conteo validado</p>
-
-                      <p className="mt-2 text-3xl font-black">
-                        {correctedCount}
-                      </p>
-
-                      <p className="text-xs text-[var(--muted)]">
-                        Diferencia: {countDifference > 0 ? `+${countDifference}` : countDifference}
-                      </p>
-                    </div>
+                      <div className="rounded-[24px] bg-[var(--card-strong)] p-4 ring-1 ring-black/5 dark:ring-white/10">
+                        <p className="text-sm text-[var(--muted)]">Conteo validado</p>
+                        <p className="mt-2 text-4xl font-black">{totalValidated}</p>
+                        <p className="mt-2 text-xs leading-5 text-[var(--muted)]">
+                          {countSummaryLines(validatedCounts)}
+                        </p>
+                      </div>
+                    </>
                   ) : null}
                 </div>
               </div>

@@ -21,6 +21,12 @@ export type IAVisualDetection = {
   confidence?: number | null;
 };
 
+export type IACategoryCounts = {
+  pollitos: number;
+  gallinas: number;
+  huevos: number;
+};
+
 export type LastAIMetrics = {
   imagenId: number | null;
   resultadoId: number | null;
@@ -33,4 +39,6 @@ export type LastAIMetrics = {
   estado: string;
   feedbackEnviado: boolean;
   fecha: string;
+  conteosIA?: IACategoryCounts;
+  conteosCorregidos?: IACategoryCounts;
 };

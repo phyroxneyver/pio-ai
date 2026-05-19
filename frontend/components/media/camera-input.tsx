@@ -143,8 +143,8 @@ export function CameraInput({
           disabled={disabled}
           className="primary-button inline-flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold transition duration-300 hover:-translate-y-0.5 disabled:opacity-60 sm:w-auto"
         >
-          <Camera className="h-4 w-4" />
-          Cámara del dispositivo
+          <FolderOpen className="h-4 w-4" />
+          Tomar o elegir foto
         </button>
 
         <button
@@ -154,15 +154,6 @@ export function CameraInput({
         >
           <Aperture className="h-4 w-4" />
           {startingCamera ? "Abriendo..." : "Vista en vivo"}
-        </button>
-
-        <button
-          onClick={openNativeInput}
-          disabled={disabled}
-          className="secondary-button inline-flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-medium transition duration-300 hover:-translate-y-0.5 disabled:opacity-60 sm:w-auto"
-        >
-          <FolderOpen className="h-4 w-4" />
-          Seleccionar imagen
         </button>
       </div>
 
@@ -203,7 +194,7 @@ export function CameraInput({
                   {/* Texto guía dentro del recuadro */}
                   <div className="absolute bottom-3 left-0 right-0 flex justify-center">
                     <span className="bg-black/60 text-white text-xs font-semibold px-3 py-1 rounded-full">
-                      Centra los pollitos aquí
+                      Centra pollos, gallinas o huevos
                     </span>
                   </div>
                 </div>
@@ -212,7 +203,7 @@ export function CameraInput({
               {/* Instrucción arriba */}
               <div className="absolute top-3 left-0 right-0 flex justify-center">
                 <span className="bg-black/60 text-white text-xs px-3 py-1 rounded-full">
-                  📏 Distancia ideal: 50-80 cm
+                  📏 Evita sombras y objetos cortados
                 </span>
               </div>
             </div>

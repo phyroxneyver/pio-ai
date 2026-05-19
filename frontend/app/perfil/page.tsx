@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
     BadgeCheck,
     KeyRound,
@@ -19,14 +19,7 @@ import { getUser, type SessionUser } from "@/lib/session";
 import { MOCK_USER } from "@/lib/mock-user";
 
 export default function PerfilPage() {
-    const [user, setUser] = useState<SessionUser>(MOCK_USER);
-
-    useEffect(() => {
-        const storedUser = getUser();
-        if (storedUser) {
-            setUser(storedUser);
-        }
-    }, []);
+    const [user] = useState<SessionUser>(() => getUser() ?? MOCK_USER);
 
     return (
         <RouteGuard>

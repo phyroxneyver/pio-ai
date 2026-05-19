@@ -44,8 +44,8 @@
   --color-primary: var(--primary);
   --color-primary-strong: var(--primary-strong);
   --color-primary-foreground: var(--primary-foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-geist-sans, Arial, Helvetica, sans-serif);
+  --font-mono: var(--font-geist-mono, "Courier New", monospace);
 }
 
 * {
@@ -64,7 +64,7 @@ body {
     radial-gradient(circle at top left, rgba(246, 177, 26, 0.16), transparent 28%),
     radial-gradient(circle at top right, rgba(255, 255, 255, 0.06), transparent 24%),
     linear-gradient(180deg, var(--background), var(--surface));
-  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans, Arial, Helvetica, sans-serif);
 }
 
 button {

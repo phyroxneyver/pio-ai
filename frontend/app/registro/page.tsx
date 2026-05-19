@@ -11,8 +11,14 @@ import { PageContainer } from "@/components/layout/page-container";
 import { RouteGuard } from "@/components/auth/route-guard";
 import { ClipboardList, CheckCircle, Baby, Bird, Egg } from "lucide-react";
 
+type AveRegistro = {
+  id: number;
+  tipo: "pollito" | "gallina" | string;
+  cantidad?: number;
+};
+
 export default function RegistroPage() {
-  const [aves, setAves] = useState<any[]>([]);
+  const [aves, setAves] = useState<AveRegistro[]>([]);
   const [pollitos, setPollitos] = useState(0);
   const [gallinas, setGallinas] = useState(0);
   const [huevos, setHuevos] = useState(0);

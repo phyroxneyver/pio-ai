@@ -107,17 +107,6 @@ export async function registrarHuevos(
   });
 }
 
-export async function listarAlertas(estado?: string) {
-  const url = estado ? `/alertas?estado=${estado}&limit=50` : "/alertas?limit=50";
-
-  return fetchWithAuth(url).then((r) => r.json());
-}
-
-export async function marcarAlertaLeida(id: number) {
-  return fetchWithAuth(`/alertas/${id}/leida`, {
-    method: "PATCH",
-  }).then((r) => r.json());
-}
 
 export async function subirImagen(file: File) {
   const token = localStorage.getItem("pioai_token");
