@@ -128,7 +128,9 @@ export default function CapturaPage() {
   const [analizando, setAnalizando] = useState(false);
   const [timerExcedido, setTimerExcedido] = useState(false);
 
-  const [correctedCount, setCorrectedCount] = useState(0);
+  const [correctedPollitos, setCorrectedPollitos] = useState(0);
+  const [correctedGallinas, setCorrectedGallinas] = useState(0);
+  const [correctedHuevos, setCorrectedHuevos] = useState(0);
   const [correctionReason, setCorrectionReason] = useState("");
   const [feedbackEnviado, setFeedbackEnviado] = useState(false);
   const [enviandoFeedback, setEnviandoFeedback] = useState(false);
@@ -175,8 +177,13 @@ export default function CapturaPage() {
     if (h > 0) partes.push(`${h} huevo${h !== 1 ? "s" : ""}`);
     return partes.length > 0 ? partes.join(", ") : "0 detectados";
   })();
+  const correctedCount = correctedPollitos + correctedGallinas + correctedHuevos;
   const countDifference = correctedCount - iaCount;
-  const hasCorrection = Boolean(resultadoIA && countDifference !== 0);
+  const hasCorrection = Boolean(resultadoIA && (
+    correctedPollitos !== (resultadoIA.conteo_pollitos ?? 0) ||
+    correctedGallinas !== (resultadoIA.conteo_gallinas ?? 0) ||
+    correctedHuevos !== (resultadoIA.conteo_huevos ?? 0)
+  ));
   const hasImage = Boolean(selectedFile && previewUrl);
 
   const stageLabel = useMemo(() => {
@@ -221,7 +228,9 @@ export default function CapturaPage() {
     setCorrectionReason("");
     setMostrarCausaBaja(false);
     setFeedbackEnviado(false);
-    setCorrectedCount(0);
+    setCorrectedPollitos(0);
+    setCorrectedGallinas(0);
+    setCorrectedHuevos(0);
     setStage("preview");
     setUploadStageDetail("idle");
 
@@ -261,7 +270,9 @@ export default function CapturaPage() {
     setCorrectionReason("");
     setMostrarCausaBaja(false);
     setFeedbackEnviado(false);
-    setCorrectedCount(0);
+    setCorrectedPollitos(0);
+    setCorrectedGallinas(0);
+    setCorrectedHuevos(0);
   }
 
   async function clearCameraCache() {
@@ -424,11 +435,9 @@ export default function CapturaPage() {
       setUploadStageDetail("finalizado");
       setProgress(100);
       setResultadoIA(resultado);
-      setCorrectedCount(
-        (resultado.conteo_pollitos ?? 0) +
-        (resultado.conteo_gallinas ?? 0) +
-        (resultado.conteo_huevos ?? 0)
-      );
+      setCorrectedPollitos(resultado.conteo_pollitos ?? 0);
+      setCorrectedGallinas(resultado.conteo_gallinas ?? 0);
+      setCorrectedHuevos(resultado.conteo_huevos ?? 0);
       setStage("success");
 
       await revisarBajaContraUltimoConteo(resultado);
@@ -481,12 +490,16 @@ export default function CapturaPage() {
     }
   }
 
-  function decreaseCorrectedCount() {
-    setCorrectedCount((current) => Math.max(0, current - 1));
+  function decreaseTipo(tipo: "pollito" | "gallina" | "huevo") {
+    if (tipo === "pollito") setCorrectedPollitos((n) => Math.max(0, n - 1));
+    if (tipo === "gallina") setCorrectedGallinas((n) => Math.max(0, n - 1));
+    if (tipo === "huevo") setCorrectedHuevos((n) => Math.max(0, n - 1));
   }
 
-  function increaseCorrectedCount() {
-    setCorrectedCount((current) => current + 1);
+  function increaseTipo(tipo: "pollito" | "gallina" | "huevo") {
+    if (tipo === "pollito") setCorrectedPollitos((n) => n + 1);
+    if (tipo === "gallina") setCorrectedGallinas((n) => n + 1);
+    if (tipo === "huevo") setCorrectedHuevos((n) => n + 1);
   }
 
   async function handleEnviarFeedback(tipo: "correccion" | "fallida") {
@@ -563,31 +576,36 @@ export default function CapturaPage() {
         if (!feedbackOk) return;
       }
 
-      await fetchWithAuth("/aves", {
-        method: "POST",
-        body: JSON.stringify({
-          tipo: "pollito",
-          cantidad: correctedCount,
-          notas:
-            [
+      const tiposAGuardar = [
+        { tipo: "pollito", cantidad: correctedPollitos, ia: resultadoIA.conteo_pollitos ?? 0 },
+        { tipo: "gallina", cantidad: correctedGallinas, ia: resultadoIA.conteo_gallinas ?? 0 },
+        { tipo: "huevo", cantidad: correctedHuevos, ia: resultadoIA.conteo_huevos ?? 0 },
+      ].filter((t) => t.ia > 0 || t.cantidad > 0);
+
+      for (const t of tiposAGuardar) {
+        await fetchWithAuth("/aves", {
+          method: "POST",
+          body: JSON.stringify({
+            tipo: t.tipo,
+            cantidad: t.cantidad,
+            notas: [
               `Conteo validado Persona 4.`,
-              `IA=${resultadoIA.conteo_pollitos ?? 0}.`,
-              `Corregido=${correctedCount}.`,
+              `IA=${t.ia}.`,
+              `Corregido=${t.cantidad}.`,
               `Confianza=${resultadoIA.confianza ?? "sin dato"}.`,
               resultadoIA.duracion_ms ? `Tiempo IA=${resultadoIA.duracion_ms}ms.` : "",
               correctionReason ? `Corrección: ${correctionReason}.` : "",
               causaBaja ? `Causa de baja: ${causaBaja}.` : "",
-            ]
-              .filter(Boolean)
-              .join(" "),
-        }),
-      });
+            ].filter(Boolean).join(" "),
+          }),
+        });
+      }
 
       setConfirmado(true);
 
       updateLastMetrics({
         conteoCorregido: correctedCount,
-        diferencia: correctedCount - (resultadoIA.conteo_pollitos ?? 0),
+        diferencia: correctedCount - iaCount,
       });
 
       showToast({
@@ -814,41 +832,39 @@ export default function CapturaPage() {
                   </div>
 
                   <div className="rounded-[28px] bg-[var(--card-strong)] p-4 ring-1 ring-black/5 dark:ring-white/10">
-                    <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                      <div>
-                        <p className="text-sm font-semibold">
-                          Corrección manual del trabajador
-                        </p>
+                    <p className="text-sm font-semibold">Corrección manual del trabajador</p>
+                    <p className="mt-1 text-xs leading-5 text-[var(--muted)]">
+                      Si la IA se equivocó, ajusta el conteo por tipo antes de guardar.
+                    </p>
 
-                        <p className="mt-1 text-xs leading-5 text-[var(--muted)]">
-                          Si la IA se equivocó, suma o resta pollitos antes de guardar.
-                        </p>
-                      </div>
-
-                      <div className="flex items-center gap-3">
-                        <button
-                          onClick={decreaseCorrectedCount}
-                          className="secondary-button flex h-11 w-11 items-center justify-center rounded-2xl"
-                        >
-                          <Minus className="h-4 w-4" />
-                        </button>
-
-                        <div className="min-w-[120px] rounded-2xl bg-[var(--background)] px-4 py-3 text-center ring-1 ring-black/5 dark:ring-white/10">
-                          <p className="text-xs text-[var(--muted)]">
-                            Conteo validado
-                          </p>
-                          <p className="text-3xl font-black">
-                            {correctedCount}
-                          </p>
+                    <div className="mt-4 flex flex-col gap-3">
+                      {([
+                        { tipo: "pollito" as const, label: "Pollitos", ia: resultadoIA.conteo_pollitos ?? 0, corrected: correctedPollitos },
+                        { tipo: "gallina" as const, label: "Gallinas", ia: resultadoIA.conteo_gallinas ?? 0, corrected: correctedGallinas },
+                        { tipo: "huevo" as const, label: "Huevos", ia: resultadoIA.conteo_huevos ?? 0, corrected: correctedHuevos },
+                      ].filter((t) => t.ia > 0)).map((t) => (
+                        <div key={t.tipo} className="flex items-center justify-between gap-3">
+                          <p className="text-sm font-medium w-20">{t.label}</p>
+                          <div className="flex items-center gap-3">
+                            <button
+                              onClick={() => decreaseTipo(t.tipo)}
+                              className="secondary-button flex h-10 w-10 items-center justify-center rounded-2xl"
+                            >
+                              <Minus className="h-4 w-4" />
+                            </button>
+                            <div className="min-w-[90px] rounded-2xl bg-[var(--background)] px-3 py-2 text-center ring-1 ring-black/5 dark:ring-white/10">
+                              <p className="text-xs text-[var(--muted)]">Validado</p>
+                              <p className="text-2xl font-black">{t.corrected}</p>
+                            </div>
+                            <button
+                              onClick={() => increaseTipo(t.tipo)}
+                              className="secondary-button flex h-10 w-10 items-center justify-center rounded-2xl"
+                            >
+                              <Plus className="h-4 w-4" />
+                            </button>
+                          </div>
                         </div>
-
-                        <button
-                          onClick={increaseCorrectedCount}
-                          className="secondary-button flex h-11 w-11 items-center justify-center rounded-2xl"
-                        >
-                          <Plus className="h-4 w-4" />
-                        </button>
-                      </div>
+                      ))}
                     </div>
 
                     {hasCorrection ? (
