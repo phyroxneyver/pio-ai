@@ -25,7 +25,7 @@ LABELS_VALIDOS = {
 }
 
 # Una detección individual debe superar este umbral para ser guardada
-CONFIANZA_MINIMA_DETECCION = 0.70
+CONFIANZA_MINIMA_DETECCION = 0.60   # ← bajado de 0.70: huevos en bandeja densa suelen quedar entre 0.60-0.69
 
 # Temperatura 0 = determinista, sin creatividad ni alucinaciones
 TEMPERATURE = 0.0
@@ -118,7 +118,10 @@ def _validar_y_ajustar_conteos(
       1. es_imagen_valida=False  → todo 0.
       2. confianza baja          → todo 0.
       3. hay_contexto_avicola=False para huevos → huevos en 0.
-      4. Conteo final nunca supera las detecciones reales con ese label.
+      4. Si hay detecciones individuales para un label, el conteo no puede
+         superar esa cantidad. Si NO hay detecciones individuales (el modelo
+         contó pero no marcó coordenadas, p.ej. bandeja muy densa), se
+         confía en el conteo declarado por el modelo — NO se fuerza a 0.
     """
     if datos.get("es_imagen_valida") is False:
         return 0, 0, 0, 0, 0, 0
@@ -143,13 +146,25 @@ def _validar_y_ajustar_conteos(
     for d in detecciones:
         det[d["label"]] = det.get(d["label"], 0) + 1
 
-    # El conteo nunca puede ser mayor que las detecciones reales
-    pollitos          = min(pollitos,          det.get("pollito",          pollitos))
-    gallinas          = min(gallinas,          det.get("gallina",          gallinas))
-    gallos            = min(gallos,            det.get("gallo",            gallos))
-    huevos_gallina    = min(huevos_gallina,    det.get("huevo_gallina",    huevos_gallina))
-    huevos_incubacion = min(huevos_incubacion, det.get("huevo_incubacion", huevos_incubacion))
-    huevos_rotos      = min(huevos_rotos,      det.get("huevo_roto",       huevos_rotos))
+    # ── REGLA CORREGIDA ──────────────────────────────────────────────────────
+    # Si el modelo marcó detecciones individuales para ese label → el conteo
+    # declarado no puede superarlas (cap).
+    # Si NO marcó ninguna detección individual → confiamos en el conteo
+    # declarado (el modelo contó pero no pudo/quiso marcar cada punto,
+    # situación normal en bandejas densas o imágenes pequeñas).
+    # ─────────────────────────────────────────────────────────────────────────
+    def _cap(conteo: int, label: str) -> int:
+        n_det = det.get(label, 0)
+        if n_det > 0:
+            return min(conteo, n_det)
+        return conteo  # sin detecciones individuales → respetar conteo del modelo
+
+    pollitos          = _cap(pollitos,          "pollito")
+    gallinas          = _cap(gallinas,          "gallina")
+    gallos            = _cap(gallos,            "gallo")
+    huevos_gallina    = _cap(huevos_gallina,    "huevo_gallina")
+    huevos_incubacion = _cap(huevos_incubacion, "huevo_incubacion")
+    huevos_rotos      = _cap(huevos_rotos,      "huevo_roto")
 
     return pollitos, gallinas, gallos, huevos_gallina, huevos_incubacion, huevos_rotos
 
@@ -210,6 +225,7 @@ USER_PROMPT = (
     "    • Una incubadora eléctrica\n"
     "    • Suelo de gallinero con paja/viruta y excrementos típicos\n"
     "    • Bandeja de cartón con huevos blancos/marrones en gallinero\n"
+    "    • Bandeja de cartón o plástico tipo cartón de huevos (aunque no esté en gallinero)\n"
     "  hay_contexto_avicola = false en todos los demás casos.\n\n"
     "  Si hay_contexto_avicola=false → conteo_huevos_gallina=0, "
     "conteo_huevos_incubacion=0, conteo_huevos_rotos=0.\n\n"
@@ -250,7 +266,23 @@ USER_PROMPT = (
     "  • Huevo de gallina: tamaño mediano ~5-6 cm, color blanco/cremoso/marrón.\n"
     "    Un huevo muy grande (avestruz ~15 cm) o muy pequeño (codorniz ~3 cm) → RECHAZA.\n\n"
 
-    "▸ huevo_gallina\n"
+    "DIFERENCIACIÓN OBLIGATORIA DE SUBTIPOS:\n"
+    "  Debes asignar CADA huevo a exactamente uno de los tres subtipos siguientes.\n"
+    "  NO uses 'huevo_gallina' como cajón de sastre — evalúa cada huevo individualmente.\n\n"
+
+    "▸ huevo_incubacion  ← PRIORIDAD ALTA, evalúa PRIMERO\n"
+    "  ✓ Huevo de gallina DENTRO de incubadora eléctrica visible en la foto\n"
+    "  ✓ O huevo bajo gallina clueca claramente posada sobre él\n"
+    "  ✓ Puede tener marcas de lápiz/bolígrafo para rotación\n"
+    "  ✓ Incubadora: carcasa plástica/metal con rejillas, termómetro, bandeja giratoria\n"
+    "  ✗ RECHAZA: si no ves claramente la incubadora o la gallina clueca\n\n"
+
+    "▸ huevo_roto  ← PRIORIDAD ALTA, evalúa SEGUNDO\n"
+    "  ✓ Cáscara partida con clara (albúmina) o yema visibles\n"
+    "  ✓ En suelo de gallinero con restos de cáscara\n"
+    "  ✗ RECHAZA: si no se ven claramente cáscara rota Y contenido\n\n"
+
+    "▸ huevo_gallina  ← solo si NO es incubacion ni roto\n"
     "  ✓ Huevo entero sin cocinar, tamaño mediano, blanco/cremoso/marrón liso\n"
     "  ✓ En nidal, bandeja de cartón/plástico, suelo de gallinero o cesta\n"
     "  ✓ Hay gallinas visibles en la misma imagen O contexto de gallinero confirmado\n"
@@ -258,16 +290,8 @@ USER_PROMPT = (
     "  ✗ RECHAZA: huevos pintados, de Pascua, cocinados o de otras especies\n"
     "  ✗ RECHAZA: huevo muy grande (avestruz) o muy pequeño (codorniz, pájaro)\n\n"
 
-    "▸ huevo_incubacion\n"
-    "  ✓ Huevo de gallina DENTRO de incubadora eléctrica visible en la foto\n"
-    "  ✓ O huevo bajo gallina clueca claramente posada sobre él\n"
-    "  ✓ Puede tener marcas de lápiz/bolígrafo para rotación\n"
-    "  ✗ RECHAZA: si no ves claramente la incubadora o la gallina clueca\n\n"
-
-    "▸ huevo_roto\n"
-    "  ✓ Cáscara partida con clara (albúmina) o yema visibles\n"
-    "  ✓ En suelo de gallinero con restos de cáscara\n"
-    "  ✗ RECHAZA: si no se ven claramente cáscara rota Y contenido\n\n"
+    "  EJEMPLO: imagen con incubadora con 30 huevos y 2 huevos rotos en el suelo →\n"
+    "    conteo_huevos_incubacion=30, conteo_huevos_rotos=2, conteo_huevos_gallina=0\n\n"
 
     "══════════════════════════════════════════\n"
     "PASO 5 — COORDENADAS Y CONFIANZA\n"
@@ -275,6 +299,9 @@ USER_PROMPT = (
     "Marca el centro de cada elemento con coordenadas normalizadas 0.0-1.0:\n"
     "  x=0 borde izquierdo, x=1 borde derecho\n"
     "  y=0 borde superior, y=1 borde inferior\n\n"
+    "IMPORTANTE: si hay muchos huevos (>15) y no puedes marcar todos individualmente,\n"
+    "marca una muestra representativa (mínimo 5) y declara el conteo real en conteo_huevos_*.\n"
+    "El conteo en los campos numéricos es la fuente de verdad, no el número de detecciones.\n\n"
     "Confianza global:\n"
     "  'alta'  → imagen clara, todo 100% identificable, cero dudas\n"
     "  'media' → algo de ambigüedad (poca luz, oclusión, ángulo difícil)\n"
