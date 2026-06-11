@@ -1,7 +1,7 @@
 """
 Schemas Pydantic para el módulo de alertas y notificaciones.
 """
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from datetime import datetime
 from typing import Optional, Literal, List
 
@@ -61,8 +61,7 @@ class AlertaResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)  # noqa: F821
 
 
 class AlertaListResponse(BaseModel):
@@ -84,8 +83,7 @@ class NotificacionResponse(BaseModel):
     # Info básica de la alerta anidada
     alerta: Optional[AlertaResponse] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)  # noqa: F821
 
 
 class NotificacionListResponse(BaseModel):
@@ -107,8 +105,7 @@ class HistorialEntrada(BaseModel):
     realizado_por_id: int
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)  # noqa: F821
 
 
 class HistorialResponse(BaseModel):

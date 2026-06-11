@@ -28,39 +28,30 @@ def login_for_access_token(
     """
     Autentica al usuario con email + contraseña.
     """
-    try:
-        # 1. Buscar usuario
-        user = db.query(User).filter(User.email == form_data.username).first()
+    # 1. Buscar usuario
+    user = db.query(User).filter(User.email == form_data.username).first()
 
-        # 2. Validar credenciales
-        if not user or not verify_password(form_data.password, user.hashed_password):
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Email o contraseña incorrectos",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-
-        # 3. Verificar que el usuario esté activo
-        if not user.is_active:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Tu cuenta está deshabilitada",
-            )
-
-        # 4. Generar token
-        access_token = create_access_token(
-            data={"sub": user.email, "role": user.role}
-        )
-
-        return {"access_token": access_token, "token_type": "bearer"}
-    except Exception as e:
-        import traceback
-        print(f"ERROR EN LOGIN: {str(e)}")
-        print(traceback.format_exc())
+    # 2. Validar credenciales
+    if not user or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail={"error": str(e), "trace": traceback.format_exc()}
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Email o contraseña incorrectos",
+            headers={"WWW-Authenticate": "Bearer"},
         )
+
+    # 3. Verificar que el usuario esté activo
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Tu cuenta está deshabilitada",
+        )
+
+    # 4. Generar token
+    access_token = create_access_token(
+        data={"sub": user.email, "role": user.role}
+    )
+
+    return {"access_token": access_token, "token_type": "bearer"}
 
 
 # ---------------------------------------------------------------------------

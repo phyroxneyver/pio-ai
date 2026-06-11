@@ -1,7 +1,7 @@
 """
 Schemas de usuario con soporte de roles.
 """
-from pydantic import BaseModel, EmailStr, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, field_validator
 from typing import Optional
 
 VALID_ROLES = ("admin", "usuario")
@@ -33,5 +33,4 @@ class UserResponse(BaseModel):
     role: str
     is_active: bool
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
