@@ -4,7 +4,7 @@ Schemas Pydantic para el módulo de imágenes.
 from datetime import datetime
 from typing import List, Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class DeteccionVisual(BaseModel):
@@ -30,8 +30,7 @@ class ResultadoIAResponse(BaseModel):
     detecciones_json: Optional[str] = None
     detecciones: List[DeteccionVisual] = []
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ImagenResponse(BaseModel):
@@ -46,9 +45,8 @@ class ImagenResponse(BaseModel):
     created_at: datetime
     resultado_ia: Optional[ResultadoIAResponse] = None
 
-    class Config:
-        from_attributes = True
-        populate_by_name = True
+    model_config = ConfigDict(from_attributes=True, populate_by_name = True)
+        
 
 
 class ImagenListResponse(BaseModel):
@@ -80,8 +78,7 @@ class FeedbackIAResponse(BaseModel):
     imagen_url: str
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class UltimaMetricaIAResponse(BaseModel):

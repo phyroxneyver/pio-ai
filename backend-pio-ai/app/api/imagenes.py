@@ -24,6 +24,9 @@ from ..services.imagenes import (
     get_imagenes,
     upload_imagen,
 )
+# ✅ CORRECCIÓN: Movemos la importación de ia_service a nivel global 
+# para que mock.patch("app.api.imagenes.analizar_imagen_con_ia") funcione en tus tests.
+from ..services.ia_service import analizar_imagen_con_ia
 
 router = APIRouter(prefix="/imagenes", tags=["Imágenes"])
 
@@ -220,8 +223,7 @@ def analizar_imagen(
             detail="No tienes permiso para analizar esta imagen",
         )
 
-    from ..services.ia_service import analizar_imagen_con_ia
-
+    # ✅ CORRECCIÓN: Quitamos el "from ..services.ia_service import analizar_imagen_con_ia" de aquí
     resultado = analizar_imagen_con_ia(
         db=db,
         imagen_id=imagen_id,

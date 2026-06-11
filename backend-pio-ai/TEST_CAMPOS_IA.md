@@ -76,7 +76,7 @@ class ResultadoIAResponse(BaseModel):
     detecciones_json: Optional[str] = None
     detecciones: List[DeteccionVisual] = []
     
-    class Config:
+    model_config:
         from_attributes = True
 ```
 

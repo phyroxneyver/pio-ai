@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from datetime import datetime
 from typing import Optional, Literal
 
@@ -6,15 +6,24 @@ from typing import Optional, Literal
 
 
 class AveCreate(BaseModel):
-    tipo: Literal["pollito", "gallina"] = Field(..., description="Tipo de ave: 'pollito' o 'gallina'")
-    cantidad: int = Field(..., gt=0, description="La cantidad debe ser mayor a 0")
+    # ✅ CAMBIO 1: Agregamos "huevo" a la lista Literal permitida
+    tipo: Literal["pollito", "gallina", "huevo"] = Field(..., description="Tipo: 'pollito', 'gallina' o 'huevo'")
+    
+    # ✅ CAMBIO 2: Cambiamos gt=0 (mayor estricto) por ge=0 (mayor o igual)
+    # Esto permite guardar un conteo de 0 cuando la IA se equivoca por completo.
+    cantidad: int = Field(..., ge=0, description="La cantidad debe ser mayor o igual a 0")
+    
     raza: Optional[str] = None
     notas: Optional[str] = None
 
 
 class AveUpdate(BaseModel):
-    tipo: Optional[Literal["pollito", "gallina"]] = None
-    cantidad: Optional[int] = Field(None, gt=0, description="La cantidad debe ser mayor a 0")
+    # ✅ CAMBIO 3: También permitimos "huevo" en la actualización
+    tipo: Optional[Literal["pollito", "gallina", "huevo"]] = None
+    
+    # ✅ CAMBIO 4: Permitimos 0 en la actualización
+    cantidad: Optional[int] = Field(None, ge=0, description="La cantidad debe ser mayor o igual a 0")
+    
     raza: Optional[str] = None
     notas: Optional[str] = None
 
@@ -27,8 +36,7 @@ class AveResponse(BaseModel):
     fecha_ingreso: datetime
     notas: Optional[str]
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 
@@ -51,5 +59,4 @@ class ProduccionResponse(BaseModel):
     fecha: datetime
     notas: Optional[str]
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

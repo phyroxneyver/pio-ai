@@ -4,7 +4,7 @@ import os
 import time
 from datetime import datetime, timezone
 from typing import Any
-
+from groq import Groq
 import httpx
 from sqlalchemy.orm import Session
 
@@ -256,7 +256,7 @@ def analizar_imagen_con_ia(db: Session, imagen_id: int) -> ResultadoIA:
     Analiza una imagen con Groq Vision (Llama 4 Scout) y persiste el ResultadoIA.
     Detecta pollitos, gallinas, gallos y subtipos de huevo de gallina doméstica.
     """
-    from groq import Groq
+
 
     client = Groq(api_key=os.getenv("GROQ_API_KEY"))
     inicio = time.perf_counter()
@@ -328,6 +328,7 @@ def analizar_imagen_con_ia(db: Session, imagen_id: int) -> ResultadoIA:
                 "es_imagen_valida":         datos.get("es_imagen_valida"),
                 "conteo_gallinas":          conteo_gallinas,
                 "conteo_gallos":            conteo_gallos,
+                "conteo_huevos":            conteo_huevos_total,   # ✅ FIX: el endpoint busca esta clave
                 "conteo_huevos_total":      conteo_huevos_total,
                 "conteo_huevos_gallina":    conteo_huevos_gallina,
                 "conteo_huevos_incubacion": conteo_huevos_incubacion,
