@@ -5,6 +5,8 @@ con ayuda de la **inteligencia artificial**: tomas una foto del corral, la IA cu
 los animales y tú validas el resultado. Todo queda registrado para llevar el control
 de tu granja.
 
+> 🌐 **Aplicación en línea:** [https://pioainetapp.netlify.app](https://pioainetapp.netlify.app)
+
 Esta guía explica cómo usar el sistema **paso a paso desde la pantalla** (vista del usuario).
 
 ---
