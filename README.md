@@ -127,10 +127,10 @@ Todos los registros guardados (los de la cámara y los manuales) se ven en la se
 
 Ahí encuentras:
 
-- **📊 Tarjetas con los totales** arriba: total de Pollitos, Gallinas y Huevos.
-- **🔘 Filtros**: botones para ver **Todos / Pollitos / Gallinas / Huevos**.
-- **📋 Lista de aves**: cada registro muestra el tipo, la fecha y la cantidad.
-- **🥚 Lista de producción de huevos**: cada registro con su fecha y cantidad.
+- ** Tarjetas con los totales** arriba: total de Pollitos, Gallinas y Huevos.
+- **Filtros**: botones para ver **Todos / Pollitos / Gallinas / Huevos**.
+- **Lista de aves**: cada registro muestra el tipo, la fecha y la cantidad.
+- **Lista de producción de huevos**: cada registro con su fecha y cantidad.
 
 > Aquí es donde revisas la evolución de tu granja: cuántas aves y huevos tienes,
 > y cuándo se registraron.
