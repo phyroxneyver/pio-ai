@@ -1,17 +1,17 @@
-# 🐔 Pio AI — Manual de uso
+#  Pio AI — Manual de uso
 
 **Pio AI** es una plataforma de control avícola. Permite contar tus aves y huevos
 con ayuda de la **inteligencia artificial**: tomas una foto del corral, la IA cuenta
 los animales y tú validas el resultado. Todo queda registrado para llevar el control
 de tu granja.
 
-> 🌐 **Aplicación en línea:** [https://pioainetapp.netlify.app](https://pioainetapp.netlify.app)
+>  **Aplicación en línea:** [https://pioainetapp.netlify.app](https://pioainetapp.netlify.app)
 
 Esta guía explica cómo usar el sistema **paso a paso desde la pantalla** (vista del usuario).
 
 ---
 
-## 📑 Índice
+##  Índice
 1. [Iniciar sesión](#1-iniciar-sesión)
 2. [Las secciones del menú](#2-las-secciones-del-menú)
 3. [Registrar aves y huevos manualmente](#3-registrar-aves-y-huevos-manualmente)
@@ -30,7 +30,7 @@ Para entrar al sistema necesitas una cuenta.
 2. Ingresa tu **correo** y tu **contraseña**.
 3. Pulsa **"Iniciar sesión"**.
 
-> 🔐 **Importante:** todas las pantallas están protegidas. Si no inicias sesión,
+>  **Importante:** todas las pantallas están protegidas. Si no inicias sesión,
 > el sistema te redirige automáticamente al login. No puedes ver ni registrar nada
 > sin haber entrado.
 
@@ -44,12 +44,12 @@ Una vez dentro, en el menú lateral (o la barra inferior en el celular) encuentr
 
 | Sección | Para qué sirve |
 |---|---|
-| 🏠 **Inicio** | Pantalla principal / resumen |
-| 📋 **Registro** | Ingresar aves y huevos **manualmente** |
-| 📷 **Cámara IA** | Tomar/subir una foto para que la **IA cuente** |
-| 🕘 **Historial** | Ver todos los registros guardados (aves y huevos) |
-| 🔔 **Alertas** | Avisos del sistema (mortalidad, producción, etc.) |
-| 👤 **Perfil** | Tus datos de usuario |
+| **Inicio** | Pantalla principal / resumen |
+| **Registro** | Ingresar aves y huevos **manualmente** |
+| **Cámara IA** | Tomar/subir una foto para que la **IA cuente** |
+| **Historial** | Ver todos los registros guardados (aves y huevos) |
+| **Alertas** | Avisos del sistema (mortalidad, producción, etc.) |
+| **Perfil** | Tus datos de usuario |
 
 ---
 
@@ -62,7 +62,7 @@ En la sección **Registro** (`/registro`) puedes anotar tus animales sin usar la
 3. (Opcional) Agrega una **nota** con algún detalle.
 4. Pulsa **guardar**.
 
-> 🥚 **Nota sobre huevos:** para registrar huevos primero debe existir al menos
+>  **Nota sobre huevos:** para registrar huevos primero debe existir al menos
 > una ave registrada, porque los huevos se asocian a una gallina. Si no hay aves,
 > el sistema te avisará.
 
@@ -139,11 +139,11 @@ Ahí encuentras:
 
 ## 6. Otras secciones
 
-- **🔔 Alertas** (`/alertas`): muestra avisos del sistema (por ejemplo, baja de
+- **Alertas** (`/alertas`): muestra avisos del sistema (por ejemplo, baja de
   producción o mortalidad). Puedes marcarlas como leídas.
-- **📈 Métricas de IA** (`/ia-metricas`): muestra qué tan precisa fue la IA en los
+- **Métricas de IA** (`/ia-metricas`): muestra qué tan precisa fue la IA en los
   últimos análisis (precisión, confianza, tiempo de procesamiento).
-- **👤 Perfil** (`/perfil`): tus datos de usuario y la opción de cerrar sesión.
+- **Perfil** (`/perfil`): tus datos de usuario y la opción de cerrar sesión.
 
 ---
 
